@@ -1,6 +1,8 @@
 use palette::IntoColor;
 use rayon::prelude::*;
 
+// TODO: async image load
+
 #[derive(Debug, Clone)]
 pub struct KmeansConfig {
   pub runs: u64,
@@ -9,6 +11,7 @@ pub struct KmeansConfig {
   pub max_iter: usize,
 }
 
+#[tracing::instrument]
 pub async fn prominent(
   path: String,
   kmeans_config: KmeansConfig,
@@ -30,14 +33,22 @@ pub async fn prominent(
     let kmeans = (0..kmeans_config.runs)
       .into_par_iter()
       .map(|i| {
-        kmeans_colors::get_kmeans_hamerly(
+        let kmeans = kmeans_colors::get_kmeans_hamerly(
           kmeans_config.k,
           kmeans_config.max_iter,
           kmeans_config.converge,
           false,
           &pixels,
           seed + i,
-        )
+        );
+
+        tracing::debug! {
+          "Kmeans {} scored {}",
+          i,
+          kmeans.score
+        };
+
+        kmeans
       })
       .min_by(|x, y| {
         x.score
@@ -50,7 +61,25 @@ pub async fn prominent(
       means: kmeans
         .centroids
         .iter()
-        .map(|lab| IntoColor::<palette::Srgb>::into_color(*lab).into_format())
+        .map(|lab| {
+          let float = IntoColor::<
+            palette::rgb::Rgba<palette::encoding::Srgb, f32>,
+          >::into_color(*lab);
+          let palette::rgb::Rgba::<palette::encoding::Srgb, u8> {
+            color:
+              palette::Srgb::<u8> {
+                red, green, blue, ..
+              },
+            alpha,
+            ..
+          } = float.into_format::<u8, u8>();
+          super::prominent::Rgba {
+            red,
+            green,
+            blue,
+            alpha,
+          }
+        })
         .collect(),
     })
   })

@@ -1,8 +1,11 @@
 [package]
+authors = [ "Haras" ]
 name = "lulezojne"
-version = "0.1.0"
-edition = "2021"
 description = "Image to ANSI color converter heavily inspired by lule"
+version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/haras-unicorn/lulezojne"
+edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.75", features = ["backtrace"] }
@@ -12,6 +15,7 @@ colored = "2.0.4"
 directories = "5.0.1"
 handlebars = "4.4.0"
 image = "0.24.7"
+itertools = "0.11.0"
 kmeans_colors = { version = "0.6.0", features = ["palette_color"] }
 num_cpus = "1.16.0"
 palette = { version = "0.7.3", features = ["serde"] }

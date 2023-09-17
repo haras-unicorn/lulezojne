@@ -1,10 +1,14 @@
 use rayon::prelude::*;
 
+// TODO: async image load
+
+#[derive(Debug, Clone)]
 pub struct ColorthiefConfig {
   pub quality: u8,
   pub max_colors: u8,
 }
 
+#[tracing::instrument]
 pub async fn prominent(
   path: String,
   config: ColorthiefConfig,
@@ -16,7 +20,7 @@ pub async fn prominent(
     .map(|byte| *byte)
     .collect::<Vec<u8>>();
 
-  let palette = color_thief::get_palette(
+  let mut palette = color_thief::get_palette(
     &bytes,
     color_thief::ColorFormat::Rgb,
     config.quality,
@@ -25,10 +29,21 @@ pub async fn prominent(
 
   Ok(super::prominent::Colors {
     means: palette
-      .iter()
-      .map(|color_thief::Color { r, g, b }| {
-        palette::Srgb::from_components((*r, *g, *b))
-      })
+      .drain(0..)
+      .map(
+        |color_thief::Color {
+           r: red,
+           g: green,
+           b: blue,
+         }| {
+          super::prominent::Rgba {
+            red,
+            green,
+            blue,
+            alpha: 255,
+          }
+        },
+      )
       .collect(),
   })
 }
