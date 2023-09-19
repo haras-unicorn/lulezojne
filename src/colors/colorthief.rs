@@ -12,7 +12,7 @@ pub struct ColorthiefConfig {
 pub async fn prominent(
   path: String,
   config: ColorthiefConfig,
-) -> anyhow::Result<super::prominent::Colors> {
+) -> anyhow::Result<super::Colors> {
   let bytes = image::io::Reader::open(path)?
     .decode()?
     .to_rgb8()
@@ -27,7 +27,7 @@ pub async fn prominent(
     config.max_colors,
   )?;
 
-  Ok(super::prominent::Colors {
+  Ok(super::Colors {
     means: palette
       .drain(0..)
       .map(
@@ -36,11 +36,11 @@ pub async fn prominent(
            g: green,
            b: blue,
          }| {
-          super::prominent::Rgba {
+          super::Rgba {
             red,
             green,
             blue,
-            alpha: 255,
+            alpha: 1.0,
           }
         },
       )

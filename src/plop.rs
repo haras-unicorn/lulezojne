@@ -13,7 +13,7 @@ pub struct Rgba {
   pub red: u8,
   pub green: u8,
   pub blue: u8,
-  pub alpha: u8,
+  pub alpha: f32,
 }
 
 #[derive(Debug, Clone)]

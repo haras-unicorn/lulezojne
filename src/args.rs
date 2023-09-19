@@ -13,6 +13,10 @@ pub enum Args {
   Print {
     #[clap(flatten)]
     generation: GenerationArgs,
+
+    /// The format in which to print
+    #[arg(long, short, value_enum, default_value = "list")]
+    format: Format,
   },
 }
 
@@ -28,9 +32,22 @@ pub struct GenerationArgs {
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]
 pub enum Backend {
+  /// Fast but accurate - best for slow devices
   #[default]
   Colorthief,
+  /// Slow but accurate - best for fast devices without a GPU
   Kmeans,
+  /// Slow but accurate - best for fast devices with a GPU
+  KmeansGpu,
+}
+
+#[derive(Debug, Clone, Default, clap::ValueEnum)]
+pub enum Format {
+  /// Simple color-coded list displaying all colors in CSS RGBA format
+  #[default]
+  List,
+  /// Grid with names of colors in foreground and color-coded background
+  Grid,
 }
 
 // NOTE: try_parse triggers anyhow

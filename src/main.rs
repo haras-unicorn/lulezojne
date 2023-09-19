@@ -16,10 +16,9 @@
 mod args;
 mod colors;
 mod config;
+mod extrapolate;
 mod plop;
 mod print;
-
-// TODO: special colors, color categories (whole ANSI - by rgbcym), nice pretty print
 
 #[tokio::main]
 #[tracing::instrument]
@@ -46,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
     args::Args::Plop { generation, .. } => generation.clone(),
     args::Args::Print { generation, .. } => generation.clone(),
   };
-  let mut colors = match generation.backend {
+  let mut palette = match generation.backend {
     args::Backend::Kmeans => {
       let kmeans_config = colors::kmeans::KmeansConfig {
         runs: config.kmeans.runs,
@@ -63,17 +62,50 @@ async fn main() -> anyhow::Result<()> {
       };
       colors::colorthief::prominent(generation.image, colorthief_config).await?
     }
+    args::Backend::KmeansGpu => {
+      let kmeans_gpu_config = colors::kmeans_gpu::KmeansGpuConfig {
+        runs: config.kmeans_gpu.runs,
+        k: config.kmeans_gpu.k,
+        converge: config.kmeans_gpu.converge,
+        max_iter: config.kmeans_gpu.max_iter,
+      };
+      colors::kmeans_gpu::prominent(generation.image, kmeans_gpu_config).await?
+    }
   };
+
+  let mut ansi = extrapolate::ansi::from(
+    palette
+      .means
+      .drain(0..)
+      .map(
+        |colors::Rgba {
+           red,
+           green,
+           blue,
+           alpha,
+         }| extrapolate::ansi::Rgba {
+          red,
+          green,
+          blue,
+          alpha,
+        },
+      )
+      .collect(),
+    extrapolate::ansi::Config {
+      main_factor: config.extrapolate.main_factor,
+      gradient_factor: config.extrapolate.gradient_factor,
+      grayscale_factor: config.extrapolate.grayscale_factor,
+    },
+  );
 
   match args {
     args::Args::Plop { .. } => {
       plop::many(
         plop::Context {
-          means: colors
-            .means
+          means: ansi
             .drain(0..)
             .map(
-              |colors::prominent::Rgba {
+              |extrapolate::ansi::Rgba {
                  red,
                  green,
                  blue,
@@ -106,13 +138,12 @@ async fn main() -> anyhow::Result<()> {
       )
       .await?;
     }
-    args::Args::Print { .. } => {
-      print::pretty(print::Colors {
-        means: colors
-          .means
+    args::Args::Print { format, .. } => {
+      let colors = print::Colors {
+        ansi: ansi
           .drain(0..)
           .map(
-            |colors::prominent::Rgba {
+            |extrapolate::ansi::Rgba {
                red,
                green,
                blue,
@@ -125,8 +156,12 @@ async fn main() -> anyhow::Result<()> {
             },
           )
           .collect(),
-      })
-      .await?;
+      };
+
+      match format {
+        args::Format::List => print::list::from(colors).await?,
+        args::Format::Grid => print::grid::from(colors).await?,
+      }
     }
   }
 

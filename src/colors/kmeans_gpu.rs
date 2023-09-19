@@ -2,9 +2,10 @@ use palette::IntoColor;
 use rayon::prelude::*;
 
 // TODO: async image load
+// TODO: https://github.com/redwarp/kmeans-gpu
 
 #[derive(Debug, Clone)]
-pub struct KmeansConfig {
+pub struct KmeansGpuConfig {
   pub runs: u64,
   pub k: usize,
   pub converge: f32,
@@ -14,7 +15,7 @@ pub struct KmeansConfig {
 #[tracing::instrument]
 pub async fn prominent(
   path: String,
-  config: KmeansConfig,
+  config: KmeansGpuConfig,
 ) -> anyhow::Result<super::Colors> {
   tokio::spawn(async move {
     let pixels = image::io::Reader::open(path)?

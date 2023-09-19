@@ -9,7 +9,13 @@ pub struct Config {
   pub kmeans: KmeansConfig,
 
   #[serde(default)]
+  pub kmeans_gpu: KmeansGpuConfig,
+
+  #[serde(default)]
   pub colorthief: ColorthiefConfig,
+
+  #[serde(default)]
+  pub extrapolate: ExtrapolateConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +38,7 @@ impl KmeansConfig {
     num_cpus::get().try_into().unwrap_or_default()
   }
   fn default_k() -> usize {
-    16
+    256
   }
   fn default_max_iter() -> usize {
     30
@@ -49,6 +55,47 @@ impl Default for KmeansConfig {
       k: KmeansConfig::default_k(),
       max_iter: KmeansConfig::default_max_iter(),
       converge: KmeansConfig::default_converge(),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KmeansGpuConfig {
+  #[serde(default = "KmeansGpuConfig::default_runs")]
+  pub runs: u64,
+
+  #[serde(default = "KmeansGpuConfig::default_k")]
+  pub k: usize,
+
+  #[serde(default = "KmeansGpuConfig::default_max_iter")]
+  pub max_iter: usize,
+
+  #[serde(default = "KmeansGpuConfig::default_converge")]
+  pub converge: f32,
+}
+
+impl KmeansGpuConfig {
+  fn default_runs() -> u64 {
+    num_cpus::get().try_into().unwrap_or_default()
+  }
+  fn default_k() -> usize {
+    256
+  }
+  fn default_max_iter() -> usize {
+    300
+  }
+  fn default_converge() -> f32 {
+    0.2
+  }
+}
+
+impl Default for KmeansGpuConfig {
+  fn default() -> Self {
+    Self {
+      runs: KmeansGpuConfig::default_runs(),
+      k: KmeansGpuConfig::default_k(),
+      max_iter: KmeansGpuConfig::default_max_iter(),
+      converge: KmeansGpuConfig::default_converge(),
     }
   }
 }
@@ -76,6 +123,40 @@ impl Default for ColorthiefConfig {
     Self {
       quality: Self::default_quality(),
       max_colors: Self::default_max_colors(),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtrapolateConfig {
+  #[serde(default = "ExtrapolateConfig::default_main_factor")]
+  pub main_factor: f32,
+
+  #[serde(default = "ExtrapolateConfig::default_gradient_factor")]
+  pub gradient_factor: f32,
+
+  #[serde(default = "ExtrapolateConfig::default_grayscale_factor")]
+  pub grayscale_factor: f32,
+}
+
+impl ExtrapolateConfig {
+  fn default_main_factor() -> f32 {
+    0.8
+  }
+  fn default_gradient_factor() -> f32 {
+    0.7
+  }
+  fn default_grayscale_factor() -> f32 {
+    0.4
+  }
+}
+
+impl Default for ExtrapolateConfig {
+  fn default() -> Self {
+    Self {
+      main_factor: Self::default_main_factor(),
+      gradient_factor: Self::default_gradient_factor(),
+      grayscale_factor: Self::default_grayscale_factor(),
     }
   }
 }
