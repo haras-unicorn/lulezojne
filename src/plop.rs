@@ -50,22 +50,33 @@ pub struct Config {
 
 #[derive(Debug, Clone)]
 pub struct Definition {
-  pub template_path: String,
+  pub template_or_path: String,
   pub destination_path: String,
 }
 
 #[tracing::instrument]
 pub async fn many(context: Context, config: Config) -> anyhow::Result<()> {
-  let compilation_tasks = config
-    .definitions
+  let definitions = {
+    let mut definitions = Vec::new();
+    for definition in config.definitions {
+      definitions.push(Definition {
+        template_or_path: if is_path(definition.template_or_path.as_str()) {
+          expand(definition.template_or_path.clone())?
+        } else {
+          definition.template_or_path
+        },
+        destination_path: expand(definition.destination_path.clone())?,
+      })
+    }
+    definitions
+  };
+
+  let compilation_tasks = definitions
     .iter()
-    .map(|definition| definition.template_path.clone())
+    .map(|definition| definition.template_or_path.clone())
     .unique()
     .map(|path| {
-      tokio::spawn({
-        let path = path.clone();
-        async move { (path.clone(), compile(path).await) }
-      })
+      tokio::spawn(async move { (path.clone(), compile(path).await) })
     });
   let mut registry = handlebars::Handlebars::new();
   for task in compilation_tasks {
@@ -74,11 +85,11 @@ pub async fn many(context: Context, config: Config) -> anyhow::Result<()> {
   }
 
   let context = handlebars::Context::wraps(context)?;
-  for definition in config.definitions {
-    plop(&registry, &context, definition.clone()).await?;
+  for definition in definitions {
+    plop(&registry, &context, definition).await?;
   }
 
-  // let plop_tasks = config.definitions.iter().map(|definition| {
+  // let plop_tasks = definitions.iter().map(|definition| {
   //   tokio::spawn({
   //     let definition = definition.clone();
   //     async { plop(&registry, &context, definition).await }
@@ -91,9 +102,16 @@ pub async fn many(context: Context, config: Config) -> anyhow::Result<()> {
   Ok(())
 }
 
-async fn compile(path: String) -> anyhow::Result<handlebars::Template> {
+async fn compile(
+  template_or_path: String,
+) -> anyhow::Result<handlebars::Template> {
   Ok(handlebars::Template::compile(
-    tokio::fs::read_to_string(path).await?.as_str(),
+    (if is_path(template_or_path.as_str()) {
+      tokio::fs::read_to_string(template_or_path).await?
+    } else {
+      template_or_path
+    })
+    .as_str(),
   )?)
 }
 
@@ -103,9 +121,36 @@ async fn plop<'a>(
   definition: Definition,
 ) -> anyhow::Result<()> {
   let rendered =
-    registry.render_with_context(&definition.template_path, context)?;
+    registry.render_with_context(&definition.template_or_path, context)?;
   tokio::fs::write(definition.destination_path.as_str(), rendered.into_bytes())
     .await?;
 
   Ok(())
+}
+
+fn is_path(str: &str) -> bool {
+  !str.contains('\n')
+}
+
+fn expand(path: String) -> anyhow::Result<String> {
+  match shellexpand::full_with_context(
+    path.as_str(),
+    || {
+      let base_dirs = directories::BaseDirs::new();
+      match base_dirs {
+        None => None,
+        Some(base_dirs) => base_dirs.home_dir().to_str().map(|home_dir| home_dir.to_owned()),
+      }
+    },
+    |_| Result::<_, anyhow::Error>::Ok(Option::<&str>::None),
+  ) {
+    Ok(result) => Ok(result.to_string()),
+    Err(shellexpand::LookupError { var_name, cause }) => {
+      Err(anyhow::anyhow!(
+        "Failed looking up {} because {}",
+        var_name,
+        cause
+      ))
+    }
+  }
 }

@@ -306,22 +306,28 @@ impl Default for AnsiConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlopDefinition {
   #[serde(rename = "template")]
-  pub template_path: String,
+  pub template_or_path: String,
 
   #[serde(rename = "in")]
   pub destination_path: String,
 }
 
-pub async fn read() -> anyhow::Result<Config> {
-  let project_dirs =
-    match directories::ProjectDirs::from("com", "Lulezojne", "lulezojne") {
-      None => return Ok(Config::default()),
-      Some(project_dirs) => project_dirs,
-    };
+pub async fn read(config_location: Option<String>) -> anyhow::Result<Config> {
   let config_location = {
-    let mut location = project_dirs.config_dir().to_path_buf();
-    location.push("config.toml");
-    location
+    match config_location {
+      Some(config_location) => config_location.into(),
+      None => {
+        let project_dirs =
+          match directories::ProjectDirs::from("com", "Lulezojne", "lulezojne")
+          {
+            None => return Ok(Config::default()),
+            Some(project_dirs) => project_dirs,
+          };
+        let mut location = project_dirs.config_dir().to_path_buf();
+        location.push("config.toml");
+        location
+      }
+    }
   };
   if !tokio::fs::try_exists(&config_location).await? {
     return Ok(Config::default());

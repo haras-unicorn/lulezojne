@@ -39,7 +39,11 @@ async fn main() -> anyhow::Result<()> {
   })?;
 
   let args = args::parse();
-  let config = config::read().await?;
+  let config_location = match &args {
+    args::Args::Plop { config, .. } => config.location.clone(),
+    args::Args::Print { config, .. } => config.location.clone(),
+  };
+  let config = config::read(config_location).await?;
 
   let generation = match &args {
     args::Args::Plop { generation, .. } => generation.clone(),
@@ -168,10 +172,10 @@ async fn main() -> anyhow::Result<()> {
             .drain(0..)
             .map(
               |config::PlopDefinition {
-                 template_path,
+                 template_or_path,
                  destination_path,
                }| plop::Definition {
-                template_path,
+                template_or_path,
                 destination_path,
               },
             )

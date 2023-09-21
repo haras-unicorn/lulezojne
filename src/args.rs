@@ -7,10 +7,16 @@ pub enum Args {
   /// Generate color files from the specified image and templates defined in the configuration
   Plop {
     #[clap(flatten)]
+    config: ConfigArgs,
+
+    #[clap(flatten)]
     generation: GenerationArgs,
   },
   /// Print colors from the specified image
   Print {
+    #[clap(flatten)]
+    config: ConfigArgs,
+
     #[clap(flatten)]
     generation: GenerationArgs,
 
@@ -18,6 +24,13 @@ pub enum Args {
     #[arg(long, short, value_enum, default_value = "list")]
     format: Format,
   },
+}
+
+#[derive(Debug, Clone, clap::Args)]
+pub struct ConfigArgs {
+  /// Alternative config location
+  #[arg(long = "config", short = 'c')]
+  pub location: Option<String>,
 }
 
 #[derive(Debug, Clone, clap::Args)]
