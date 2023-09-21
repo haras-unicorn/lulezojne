@@ -1,12 +1,12 @@
 use rayon::prelude::*;
 
-// TODO: async image load
-
 #[derive(Debug, Clone)]
 pub struct ColorthiefConfig {
   pub quality: u8,
   pub max_colors: u8,
 }
+
+// TODO: async image load
 
 #[tracing::instrument]
 pub async fn prominent(

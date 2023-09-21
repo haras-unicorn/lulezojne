@@ -15,6 +15,9 @@ pub struct Config {
   pub colorthief: ColorthiefConfig,
 
   #[serde(default)]
+  pub median_cut: MedianCutConfig,
+
+  #[serde(default)]
   pub extrapolate: ExtrapolateConfig,
 }
 
@@ -123,6 +126,26 @@ impl Default for ColorthiefConfig {
     Self {
       quality: Self::default_quality(),
       max_colors: Self::default_max_colors(),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MedianCutConfig {
+  #[serde(default = "MedianCutConfig::default_iterations")]
+  pub iterations: u8,
+}
+
+impl MedianCutConfig {
+  fn default_iterations() -> u8 {
+    8 // 2 ^ 8 = 256 for ANSI
+  }
+}
+
+impl Default for MedianCutConfig {
+  fn default() -> Self {
+    Self {
+      iterations: Self::default_iterations(),
     }
   }
 }

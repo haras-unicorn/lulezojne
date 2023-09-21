@@ -1,8 +1,6 @@
 use palette::IntoColor;
 use rayon::prelude::*;
 
-// TODO: async image load
-
 #[derive(Debug, Clone)]
 pub struct KmeansConfig {
   pub runs: u64,
@@ -10,6 +8,8 @@ pub struct KmeansConfig {
   pub converge: f32,
   pub max_iter: usize,
 }
+
+// TODO: async image load
 
 #[tracing::instrument]
 pub async fn prominent(

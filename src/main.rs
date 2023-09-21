@@ -71,6 +71,12 @@ async fn main() -> anyhow::Result<()> {
       };
       colors::kmeans_gpu::prominent(generation.image, kmeans_gpu_config).await?
     }
+    args::Backend::MedianCut => {
+      let median_cut_config = colors::median_cut::MedianCutConfig {
+        iterations: config.median_cut.iterations,
+      };
+      colors::median_cut::prominent(generation.image, median_cut_config).await?
+    }
   };
 
   let mut ansi = extrapolate::ansi::from(

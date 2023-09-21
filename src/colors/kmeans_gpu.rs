@@ -1,9 +1,6 @@
 use palette::IntoColor;
 use rayon::prelude::*;
 
-// TODO: async image load
-// TODO: https://github.com/redwarp/kmeans-gpu
-
 #[derive(Debug, Clone)]
 pub struct KmeansGpuConfig {
   pub runs: u64,
@@ -11,6 +8,9 @@ pub struct KmeansGpuConfig {
   pub converge: f32,
   pub max_iter: usize,
 }
+
+// TODO: async image load
+// TODO: https://github.com/redwarp/kmeans-gpu
 
 #[tracing::instrument]
 pub async fn prominent(

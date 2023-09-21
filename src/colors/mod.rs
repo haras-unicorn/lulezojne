@@ -1,6 +1,7 @@
 pub mod colorthief;
 pub mod kmeans;
 pub mod kmeans_gpu;
+pub mod median_cut;
 
 #[derive(Debug, Clone)]
 pub struct Colors {

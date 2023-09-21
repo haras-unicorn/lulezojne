@@ -32,13 +32,15 @@ pub struct GenerationArgs {
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]
 pub enum Backend {
-  /// Fast but accurate - best for slow devices
+  /// Fast but inaccurate - best for slow devices
   #[default]
   Colorthief,
   /// Slow but accurate - best for fast devices without a GPU
   Kmeans,
   /// Slow but accurate - best for fast devices with a GPU
   KmeansGpu,
+  /// Slow but accurate - best for fast devices with a GPU
+  MedianCut,
 }
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]
