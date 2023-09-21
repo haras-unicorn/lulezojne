@@ -21,7 +21,10 @@ pub struct Config {
   pub neoquant: NeoquantConfig,
 
   #[serde(default)]
-  pub extrapolate: ExtrapolateConfig,
+  pub scolorq: ScolorqConfig,
+
+  #[serde(default)]
+  pub ansi: AnsiConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -182,18 +185,103 @@ impl Default for NeoquantConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExtrapolateConfig {
-  #[serde(default = "ExtrapolateConfig::default_main_factor")]
+pub struct ScolorqConfig {
+  #[serde(default = "ScolorqConfig::default_size")]
+  pub size: u8,
+
+  #[serde(default = "ScolorqConfig::default_dither")]
+  pub dither: Option<f64>,
+
+  #[serde(default = "ScolorqConfig::default_seed")]
+  pub seed: Option<u64>,
+
+  #[serde(default = "ScolorqConfig::default_filter")]
+  pub filter: ScolorqConfigFilter,
+
+  #[serde(default = "ScolorqConfig::default_iters")]
+  pub iters: usize,
+
+  #[serde(default = "ScolorqConfig::default_repeats")]
+  pub repeats: usize,
+
+  #[serde(default = "ScolorqConfig::default_start_temp")]
+  pub start_temp: f64,
+
+  #[serde(default = "ScolorqConfig::default_end_temp")]
+  pub end_temp: f64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub enum ScolorqConfigFilter {
+  One,
+  #[default]
+  Three,
+  Five,
+}
+
+impl ScolorqConfig {
+  fn default_size() -> u8 {
+    // NOTE: higher lasts LONGER
+    32
+  }
+
+  fn default_dither() -> Option<f64> {
+    None
+  }
+
+  fn default_seed() -> Option<u64> {
+    None
+  }
+
+  fn default_filter() -> ScolorqConfigFilter {
+    ScolorqConfigFilter::Three
+  }
+
+  fn default_iters() -> usize {
+    3
+  }
+
+  fn default_repeats() -> usize {
+    1
+  }
+
+  fn default_start_temp() -> f64 {
+    1.0
+  }
+
+  fn default_end_temp() -> f64 {
+    0.001
+  }
+}
+
+impl Default for ScolorqConfig {
+  fn default() -> Self {
+    Self {
+      size: Self::default_size(),
+      dither: Self::default_dither(),
+      seed: Self::default_seed(),
+      filter: Self::default_filter(),
+      iters: Self::default_iters(),
+      repeats: Self::default_repeats(),
+      start_temp: Self::default_start_temp(),
+      end_temp: Self::default_end_temp(),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnsiConfig {
+  #[serde(default = "AnsiConfig::default_main_factor")]
   pub main_factor: f32,
 
-  #[serde(default = "ExtrapolateConfig::default_gradient_factor")]
+  #[serde(default = "AnsiConfig::default_gradient_factor")]
   pub gradient_factor: f32,
 
-  #[serde(default = "ExtrapolateConfig::default_grayscale_factor")]
+  #[serde(default = "AnsiConfig::default_grayscale_factor")]
   pub grayscale_factor: f32,
 }
 
-impl ExtrapolateConfig {
+impl AnsiConfig {
   fn default_main_factor() -> f32 {
     0.8
   }
@@ -205,7 +293,7 @@ impl ExtrapolateConfig {
   }
 }
 
-impl Default for ExtrapolateConfig {
+impl Default for AnsiConfig {
   fn default() -> Self {
     Self {
       main_factor: Self::default_main_factor(),

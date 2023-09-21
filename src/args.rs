@@ -26,7 +26,7 @@ pub struct GenerationArgs {
   pub image: String,
 
   /// Backend to use for generation of prominent colors
-  #[arg(long, short, value_enum, default_value = "colorthief")]
+  #[arg(long, short, value_enum, default_value = "neoquant")]
   pub backend: Backend,
 }
 
@@ -34,14 +34,17 @@ pub struct GenerationArgs {
 pub enum Backend {
   /// Fast but inaccurate - best for reaaaaly slow devices
   Colorthief,
-  /// Slow but highly accurate - best for fast devices without a GPU
+  /// Slow but highly accurate - use if you have a fast device without a GPU
   Kmeans,
-  /// Slow but highly accurate - best for fast devices with a GPU
+  /// Slow but highly accurate - use if you have a fast device with a GPU
   KmeansGpu,
   /// Medium speed and accuracy - pick this if you don't want to deal with other backends
-  #[default]
   MedianCut,
+  /// Medium speed and accuracy - improved version of median-cut
+  #[default]
   Neoquant,
+  /// Slow but highly accurate  - use if you have a fast device without a GPU
+  Scolorq,
 }
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]

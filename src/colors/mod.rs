@@ -3,6 +3,7 @@ pub mod kmeans;
 pub mod kmeans_gpu;
 pub mod median_cut;
 pub mod neoquant;
+pub mod scolorq;
 
 #[derive(Debug, Clone)]
 pub struct Colors {

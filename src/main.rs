@@ -84,6 +84,29 @@ async fn main() -> anyhow::Result<()> {
       };
       colors::neoquant::prominent(generation.image, neoquant_config).await?
     }
+    args::Backend::Scolorq => {
+      let scolorq_config = colors::scolorq::ScolorqConfig {
+        size: config.scolorq.size,
+        dither: config.scolorq.dither,
+        seed: config.scolorq.seed,
+        filter: match config.scolorq.filter {
+          config::ScolorqConfigFilter::One => {
+            colors::scolorq::ScolorqConfigFilter::One
+          }
+          config::ScolorqConfigFilter::Three => {
+            colors::scolorq::ScolorqConfigFilter::Three
+          }
+          config::ScolorqConfigFilter::Five => {
+            colors::scolorq::ScolorqConfigFilter::Five
+          }
+        },
+        iters: config.scolorq.iters,
+        repeats: config.scolorq.repeats,
+        start_temp: config.scolorq.start_temp,
+        end_temp: config.scolorq.end_temp,
+      };
+      colors::scolorq::prominent(generation.image, scolorq_config).await?
+    }
   };
 
   let mut ansi = extrapolate::ansi::from(
@@ -105,9 +128,9 @@ async fn main() -> anyhow::Result<()> {
       )
       .collect(),
     extrapolate::ansi::Config {
-      main_factor: config.extrapolate.main_factor,
-      gradient_factor: config.extrapolate.gradient_factor,
-      grayscale_factor: config.extrapolate.grayscale_factor,
+      main_factor: config.ansi.main_factor,
+      gradient_factor: config.ansi.gradient_factor,
+      grayscale_factor: config.ansi.grayscale_factor,
     },
   );
 
@@ -115,22 +138,28 @@ async fn main() -> anyhow::Result<()> {
     args::Args::Plop { .. } => {
       plop::many(
         plop::Context {
-          means: ansi
-            .drain(0..)
-            .map(
-              |extrapolate::ansi::Rgba {
-                 red,
-                 green,
-                 blue,
-                 alpha,
-               }| plop::Rgba {
-                red,
-                green,
-                blue,
-                alpha,
-              },
-            )
-            .collect(),
+          ansi: plop::Ansi {
+            main: plop::AnsiMain {
+              black: ansi_to_plop(ansi.main.black),
+              red: ansi_to_plop(ansi.main.red),
+              green: ansi_to_plop(ansi.main.green),
+              blue: ansi_to_plop(ansi.main.blue),
+              cyan: ansi_to_plop(ansi.main.cyan),
+              yellow: ansi_to_plop(ansi.main.yellow),
+              magenta: ansi_to_plop(ansi.main.magenta),
+              grey: ansi_to_plop(ansi.main.grey),
+              bright_grey: ansi_to_plop(ansi.main.bright_grey),
+              bright_red: ansi_to_plop(ansi.main.bright_red),
+              bright_green: ansi_to_plop(ansi.main.bright_green),
+              bright_blue: ansi_to_plop(ansi.main.bright_blue),
+              bright_cyan: ansi_to_plop(ansi.main.bright_cyan),
+              bright_yellow: ansi_to_plop(ansi.main.bright_yellow),
+              bright_magenta: ansi_to_plop(ansi.main.bright_magenta),
+              white: ansi_to_plop(ansi.main.white),
+            },
+            gradient: ansi.gradient.drain(0..).map(ansi_to_plop).collect(),
+            grayscale: ansi.grayscale.drain(0..).map(ansi_to_plop).collect(),
+          },
         },
         plop::Config {
           definitions: config
@@ -153,22 +182,28 @@ async fn main() -> anyhow::Result<()> {
     }
     args::Args::Print { format, .. } => {
       let colors = print::Colors {
-        ansi: ansi
-          .drain(0..)
-          .map(
-            |extrapolate::ansi::Rgba {
-               red,
-               green,
-               blue,
-               alpha,
-             }| print::Rgba {
-              red,
-              green,
-              blue,
-              alpha,
-            },
-          )
-          .collect(),
+        ansi: print::Ansi {
+          main: print::AnsiMain {
+            black: ansi_to_print(ansi.main.black),
+            red: ansi_to_print(ansi.main.red),
+            green: ansi_to_print(ansi.main.green),
+            blue: ansi_to_print(ansi.main.blue),
+            cyan: ansi_to_print(ansi.main.cyan),
+            yellow: ansi_to_print(ansi.main.yellow),
+            magenta: ansi_to_print(ansi.main.magenta),
+            grey: ansi_to_print(ansi.main.grey),
+            bright_grey: ansi_to_print(ansi.main.bright_grey),
+            bright_red: ansi_to_print(ansi.main.bright_red),
+            bright_green: ansi_to_print(ansi.main.bright_green),
+            bright_blue: ansi_to_print(ansi.main.bright_blue),
+            bright_cyan: ansi_to_print(ansi.main.bright_cyan),
+            bright_yellow: ansi_to_print(ansi.main.bright_yellow),
+            bright_magenta: ansi_to_print(ansi.main.bright_magenta),
+            white: ansi_to_print(ansi.main.white),
+          },
+          gradient: ansi.gradient.drain(0..).map(ansi_to_print).collect(),
+          grayscale: ansi.grayscale.drain(0..).map(ansi_to_print).collect(),
+        },
       };
 
       match format {
@@ -179,4 +214,36 @@ async fn main() -> anyhow::Result<()> {
   }
 
   Ok(())
+}
+
+fn ansi_to_plop(color: extrapolate::ansi::Rgba) -> plop::Rgba {
+  let extrapolate::ansi::Rgba {
+    red,
+    green,
+    blue,
+    alpha,
+  } = color;
+
+  plop::Rgba {
+    red,
+    green,
+    blue,
+    alpha,
+  }
+}
+
+fn ansi_to_print(color: extrapolate::ansi::Rgba) -> print::Rgba {
+  let extrapolate::ansi::Rgba {
+    red,
+    green,
+    blue,
+    alpha,
+  } = color;
+
+  print::Rgba {
+    red,
+    green,
+    blue,
+    alpha,
+  }
 }

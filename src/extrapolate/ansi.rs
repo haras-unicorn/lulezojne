@@ -9,6 +9,33 @@ pub struct Config {
 }
 
 #[derive(Debug, Clone)]
+pub struct Result {
+  pub main: ResultMain,
+  pub gradient: Vec<Rgba>,
+  pub grayscale: Vec<Rgba>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResultMain {
+  pub black: Rgba,
+  pub red: Rgba,
+  pub green: Rgba,
+  pub blue: Rgba,
+  pub cyan: Rgba,
+  pub yellow: Rgba,
+  pub magenta: Rgba,
+  pub grey: Rgba,
+  pub bright_grey: Rgba,
+  pub bright_red: Rgba,
+  pub bright_green: Rgba,
+  pub bright_blue: Rgba,
+  pub bright_cyan: Rgba,
+  pub bright_yellow: Rgba,
+  pub bright_magenta: Rgba,
+  pub white: Rgba,
+}
+
+#[derive(Debug, Clone)]
 pub struct Rgba {
   pub red: u8,
   pub green: u8,
@@ -39,19 +66,15 @@ lazy_static! {
   static ref CYAN: Color = opaque(*EMPTY, *HALF, *HALF);
   static ref YELLOW: Color = opaque(*HALF, *HALF, *EMPTY);
   static ref MAGENTA: Color = opaque(*HALF, *EMPTY, *HALF);
-  static ref GREY: Color = opaque(2 * *THIRD, 2 * *THIRD, 2 * *THIRD);
-  static ref BGREY: Color = opaque(*THIRD, *THIRD, *THIRD);
-  static ref BRED: Color = opaque(*FULL, *EMPTY, *EMPTY);
-  static ref BGREEN: Color = opaque(*EMPTY, *FULL, *EMPTY);
-  static ref BBLUE: Color = opaque(*EMPTY, *EMPTY, *FULL);
-  static ref BCYAN: Color = opaque(*EMPTY, *FULL, *FULL);
-  static ref BYELLOW: Color = opaque(*FULL, *FULL, *EMPTY);
-  static ref BMAGENTA: Color = opaque(*FULL, *EMPTY, *FULL);
+  static ref BRIGHT_GREY: Color = opaque(2 * *THIRD, 2 * *THIRD, 2 * *THIRD);
+  static ref GREY: Color = opaque(*THIRD, *THIRD, *THIRD);
+  static ref BRIGHT_RED: Color = opaque(*FULL, *EMPTY, *EMPTY);
+  static ref BRIGHT_GREEN: Color = opaque(*EMPTY, *FULL, *EMPTY);
+  static ref BRIGHT_BLUE: Color = opaque(*EMPTY, *EMPTY, *FULL);
+  static ref BRIGHT_CYAN: Color = opaque(*EMPTY, *FULL, *FULL);
+  static ref BRIGHT_YELLOW: Color = opaque(*FULL, *FULL, *EMPTY);
+  static ref BRIGHT_MAGENTA: Color = opaque(*FULL, *EMPTY, *FULL);
   static ref WHITE: Color = opaque(*FULL, *FULL, *FULL);
-  static ref MAIN: Vec<Color> = vec![
-    *BLACK, *RED, *GREEN, *YELLOW, *BLUE, *MAGENTA, *CYAN, *GREY, *BGREY,
-    *BRED, *BGREEN, *BYELLOW, *BBLUE, *BMAGENTA, *BCYAN, *WHITE
-  ];
 }
 
 lazy_static! {
@@ -71,59 +94,45 @@ lazy_static! {
     .collect();
 }
 
-lazy_static! {
-  static ref ANSI: Vec<Color> = {
-    let mut result = Vec::new();
-    result.append(&mut (*MAIN).clone());
-    result.append(&mut (*GRADIENT).clone());
-    result.append(&mut (*GRAYSCALE).clone());
-    result
-  };
-}
+pub fn from(palette: Vec<Rgba>, config: Config) -> Result {
+  let palette = from_rgba(&palette);
 
-pub fn from(palette: Vec<Rgba>, config: Config) -> Vec<Rgba> {
-  let color_palette = from_rgba(&palette);
-
-  let mut result_main = (*MAIN)
-    .iter()
-    .map(|color| {
-      mix(
-        *color,
-        closest_to(&color_palette, *color).unwrap_or_default(),
+  Result {
+    main: ResultMain {
+      black: mix_closest_to(&palette, *BLACK, config.main_factor),
+      red: mix_closest_to(&palette, *RED, config.main_factor),
+      green: mix_closest_to(&palette, *GREEN, config.main_factor),
+      blue: mix_closest_to(&palette, *BLUE, config.main_factor),
+      cyan: mix_closest_to(&palette, *CYAN, config.main_factor),
+      yellow: mix_closest_to(&palette, *YELLOW, config.main_factor),
+      magenta: mix_closest_to(&palette, *MAGENTA, config.main_factor),
+      grey: mix_closest_to(&palette, *GREY, config.main_factor),
+      bright_grey: mix_closest_to(&palette, *BRIGHT_GREY, config.main_factor),
+      bright_red: mix_closest_to(&palette, *BRIGHT_RED, config.main_factor),
+      bright_green: mix_closest_to(&palette, *BRIGHT_GREEN, config.main_factor),
+      bright_blue: mix_closest_to(&palette, *BRIGHT_BLUE, config.main_factor),
+      bright_cyan: mix_closest_to(&palette, *BRIGHT_CYAN, config.main_factor),
+      bright_yellow: mix_closest_to(
+        &palette,
+        *BRIGHT_YELLOW,
         config.main_factor,
-      )
-    })
-    .collect::<Vec<_>>();
-  let mut result_gradient = (*GRADIENT)
-    .iter()
-    .map(|color| {
-      mix(
-        *color,
-        closest_to(&color_palette, *color).unwrap_or_default(),
-        config.gradient_factor,
-      )
-    })
-    .collect::<Vec<_>>();
-  let mut result_grayscale = (*GRAYSCALE)
-    .iter()
-    .map(|color| {
-      mix(
-        *color,
-        closest_to(&color_palette, *color).unwrap_or_default(),
-        config.grayscale_factor,
-      )
-    })
-    .collect::<Vec<_>>();
-
-  let result = {
-    let mut result = Vec::with_capacity(256);
-    result.append(&mut result_main);
-    result.append(&mut result_gradient);
-    result.append(&mut result_grayscale);
-    result
-  };
-
-  to_rgba(&result)
+      ),
+      bright_magenta: mix_closest_to(
+        &palette,
+        *BRIGHT_MAGENTA,
+        config.main_factor,
+      ),
+      white: mix_closest_to(&palette, *WHITE, config.main_factor),
+    },
+    gradient: (*GRADIENT)
+      .iter()
+      .map(|color| mix_closest_to(&palette, *color, config.gradient_factor))
+      .collect(),
+    grayscale: (*GRAYSCALE)
+      .iter()
+      .map(|color| mix_closest_to(&palette, *color, config.grayscale_factor))
+      .collect(),
+  }
 }
 
 fn from_rgba(palette: &[Rgba]) -> Vec<Color> {
@@ -146,26 +155,29 @@ fn from_rgba(palette: &[Rgba]) -> Vec<Color> {
     .collect()
 }
 
-fn to_rgba(palette: &[Color]) -> Vec<Rgba> {
-  palette
-    .iter()
-    .map(|computational| {
-      let DiscreteRgba {
-        color: DiscreteRgb {
-          red, green, blue, ..
-        },
-        alpha,
-      } = IntoColor::<ContinuousRgba>::into_color(*computational)
-        .into_linear::<f32, f32>()
-        .into_format::<u8, f32>();
-      Rgba {
-        red,
-        green,
-        blue,
-        alpha,
-      }
-    })
-    .collect()
+fn mix_closest_to(palette: &[Color], color: Color, factor: f32) -> Rgba {
+  to_rgba(&mix(
+    color,
+    closest_to(palette, color).unwrap_or_default(),
+    factor,
+  ))
+}
+
+fn to_rgba(color: &Color) -> Rgba {
+  let DiscreteRgba {
+    color: DiscreteRgb {
+      red, green, blue, ..
+    },
+    alpha,
+  } = IntoColor::<ContinuousRgba>::into_color(*color)
+    .into_linear::<f32, f32>()
+    .into_format::<u8, f32>();
+  Rgba {
+    red,
+    green,
+    blue,
+    alpha,
+  }
 }
 
 fn closest_to(palette: &[Color], reference: Color) -> Option<Color> {

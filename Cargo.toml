@@ -24,6 +24,7 @@ num_cpus = "1.16.0"
 palette = { version = "0.7.3", features = ["serde"] }
 rand = { version = "0.8.5", features = ["serde"] }
 rayon = "1.7.0"
+rscolorq = { version = "0.2.0", default-features = false }
 serde = { version = "1.0.188", features = ["derive"] }
 shellexpand = "3.1.0"
 tokio = { version = "1.32.0", features = ["full"] }
