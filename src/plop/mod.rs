@@ -1,3 +1,5 @@
+mod helpers;
+
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -79,6 +81,7 @@ pub async fn many(context: Context, config: Config) -> anyhow::Result<()> {
       tokio::spawn(async move { (path.clone(), compile(path).await) })
     });
   let mut registry = handlebars::Handlebars::new();
+  helpers::register(&mut registry);
   for task in compilation_tasks {
     let (path, template_result) = task.await?;
     registry.register_template(path.as_str(), template_result?);
@@ -139,18 +142,19 @@ fn expand(path: String) -> anyhow::Result<String> {
       let base_dirs = directories::BaseDirs::new();
       match base_dirs {
         None => None,
-        Some(base_dirs) => base_dirs.home_dir().to_str().map(|home_dir| home_dir.to_owned()),
+        Some(base_dirs) => base_dirs
+          .home_dir()
+          .to_str()
+          .map(|home_dir| home_dir.to_owned()),
       }
     },
     |_| Result::<_, anyhow::Error>::Ok(Option::<&str>::None),
   ) {
     Ok(result) => Ok(result.to_string()),
-    Err(shellexpand::LookupError { var_name, cause }) => {
-      Err(anyhow::anyhow!(
-        "Failed looking up {} because {}",
-        var_name,
-        cause
-      ))
-    }
+    Err(shellexpand::LookupError { var_name, cause }) => Err(anyhow::anyhow!(
+      "Failed looking up {} because {}",
+      var_name,
+      cause
+    )),
   }
 }
