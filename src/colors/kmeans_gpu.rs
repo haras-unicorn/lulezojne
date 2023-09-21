@@ -59,7 +59,7 @@ pub async fn prominent(
       .unwrap_or_default();
 
     Ok(super::Colors {
-      means: kmeans
+      palette: kmeans
         .centroids
         .iter()
         .map(|lab| {

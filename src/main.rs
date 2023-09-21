@@ -77,11 +77,18 @@ async fn main() -> anyhow::Result<()> {
       };
       colors::median_cut::prominent(generation.image, median_cut_config).await?
     }
+    args::Backend::Neoquant => {
+      let neoquant_config = colors::neoquant::NeoquantConfig {
+        sample_faction: config.neoquant.sample_faction,
+        colors: config.neoquant.colors,
+      };
+      colors::neoquant::prominent(generation.image, neoquant_config).await?
+    }
   };
 
   let mut ansi = extrapolate::ansi::from(
     palette
-      .means
+      .palette
       .drain(0..)
       .map(
         |colors::Rgba {

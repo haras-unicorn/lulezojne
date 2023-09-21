@@ -18,6 +18,9 @@ pub struct Config {
   pub median_cut: MedianCutConfig,
 
   #[serde(default)]
+  pub neoquant: NeoquantConfig,
+
+  #[serde(default)]
   pub extrapolate: ExtrapolateConfig,
 }
 
@@ -146,6 +149,34 @@ impl Default for MedianCutConfig {
   fn default() -> Self {
     Self {
       iterations: Self::default_iterations(),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NeoquantConfig {
+  #[serde(default = "NeoquantConfig::default_sample_faction")]
+  pub sample_faction: i32,
+
+  #[serde(default = "NeoquantConfig::default_colors")]
+  pub colors: usize,
+}
+
+impl NeoquantConfig {
+  pub fn default_sample_faction() -> i32 {
+    10
+  }
+
+  pub fn default_colors() -> usize {
+    256
+  }
+}
+
+impl Default for NeoquantConfig {
+  fn default() -> Self {
+    Self {
+      sample_faction: Self::default_sample_faction(),
+      colors: Self::default_colors(),
     }
   }
 }

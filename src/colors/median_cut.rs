@@ -36,7 +36,7 @@ pub async fn prominent(
         };
 
         Ok(super::Colors {
-          means: palette
+          palette: palette
             .iter()
             .map(|iris_lib::color::Color { r, g, b, a }| super::Rgba {
               red: *r,

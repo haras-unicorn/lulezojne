@@ -28,7 +28,7 @@ pub async fn prominent(
   )?;
 
   Ok(super::Colors {
-    means: palette
+    palette: palette
       .drain(0..)
       .map(
         |color_thief::Color {
