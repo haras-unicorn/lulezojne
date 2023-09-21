@@ -1,9 +1,11 @@
-use handlebars::{Helper, JsonValue, PathAndJson, RenderError};
-
 mod hex;
+mod rgba;
+
+use handlebars::{Helper, JsonValue, PathAndJson, RenderError};
 
 pub fn register(handlebars: &mut handlebars::Handlebars) {
   handlebars.register_helper("hex", Box::new(hex::HexHelper));
+  handlebars.register_helper("rgba", Box::new(rgba::RgbaHelper));
 }
 
 trait HelperExtensions<'reg, 'rc> {
