@@ -56,7 +56,7 @@ pub struct Definition {
   pub destination_path: String,
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn many(context: Context, config: Config) -> anyhow::Result<()> {
   let definitions = {
     let mut definitions = Vec::new();
@@ -123,6 +123,12 @@ async fn plop<'a>(
   context: &handlebars::Context,
   definition: Definition,
 ) -> anyhow::Result<()> {
+  tracing::debug! {
+    "Rendering {} to {}",
+    definition.template_or_path,
+    definition.destination_path
+  };
+
   let rendered =
     registry.render_with_context(&definition.template_or_path, context)?;
   tokio::fs::write(definition.destination_path.as_str(), rendered.into_bytes())
