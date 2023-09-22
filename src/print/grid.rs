@@ -2,7 +2,7 @@ use std::io::Write;
 
 use colored::Colorize;
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub async fn from(colors: super::Colors) -> anyhow::Result<()> {
   std::io::stdout().write_all("MAIN:\n".as_bytes())?;
   one(colors.ansi.main.black)?;

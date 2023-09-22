@@ -49,7 +49,7 @@ handlebars_helper!(SetAlphaHelper: |color: Rgba, alpha: f32| {
     red: color.red,
     green: color.green,
     blue: color.blue,
-    alpha: alpha,
+    alpha,
   })
 });
 
