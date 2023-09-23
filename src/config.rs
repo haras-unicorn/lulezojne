@@ -304,19 +304,33 @@ pub struct AnsiMainConfig {
 
   #[serde(default = "AnsiMainConfig::default_lightness_range")]
   pub lightness_range: (f32, f32),
+
+  #[serde(default = "AnsiMainConfig::default_bright_lightness_range")]
+  pub bright_lightness_range: (f32, f32),
+
+  #[serde(default = "AnsiMainConfig::default_hue_tolerance")]
+  pub hue_tolerance: f32,
 }
 
 impl AnsiMainConfig {
   pub fn default_mix_factor() -> f32 {
-    0.8
+    1.0
   }
 
   pub fn default_saturation_range() -> (f32, f32) {
-    (0.6, 0.9)
+    (0.7, 0.9)
   }
 
   pub fn default_lightness_range() -> (f32, f32) {
-    (0.7, 1.0)
+    (0.6, 0.8)
+  }
+
+  pub fn default_bright_lightness_range() -> (f32, f32) {
+    (0.8, 1.0)
+  }
+
+  pub fn default_hue_tolerance() -> f32 {
+    360.0f32 / 12.0f32
   }
 }
 
@@ -326,6 +340,8 @@ impl Default for AnsiMainConfig {
       mix_factor: Self::default_mix_factor(),
       saturation_range: Self::default_saturation_range(),
       lightness_range: Self::default_lightness_range(),
+      bright_lightness_range: Self::default_bright_lightness_range(),
+      hue_tolerance: Self::default_hue_tolerance(),
     }
   }
 }

@@ -73,3 +73,28 @@ pub enum Format {
 pub fn parse() -> Args {
   Args::parse()
 }
+
+// TODO: expand image path
+// fn expand(path: String) -> anyhow::Result<String> {
+//   match shellexpand::full_with_context(
+//     path.as_str(),
+//     || {
+//       let base_dirs = directories::BaseDirs::new();
+//       match base_dirs {
+//         None => None,
+//         Some(base_dirs) => base_dirs
+//           .home_dir()
+//           .to_str()
+//           .map(|home_dir| home_dir.to_owned()),
+//       }
+//     },
+//     |_| Result::<_, anyhow::Error>::Ok(Option::<&str>::None),
+//   ) {
+//     Ok(result) => Ok(result.to_string()),
+//     Err(shellexpand::LookupError { var_name, cause }) => Err(anyhow::anyhow!(
+//       "Failed looking up {} because {}",
+//       var_name,
+//       cause
+//     )),
+//   }
+// }

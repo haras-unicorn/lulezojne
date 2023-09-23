@@ -1,3 +1,4 @@
+use colored::Colorize;
 use rayon::prelude::*;
 
 #[derive(Debug, Clone)]
@@ -27,23 +28,38 @@ pub async fn prominent(
     config.max_colors,
   )?;
 
-  Ok(super::Colors {
-    palette: palette
-      .drain(0..)
-      .map(
-        |color_thief::Color {
-           r: red,
-           g: green,
-           b: blue,
-         }| {
-          super::Rgba {
-            red,
-            green,
-            blue,
-            alpha: 1.0,
-          }
-        },
-      )
-      .collect(),
-  })
+  let palette = palette
+    .drain(0..)
+    .map(
+      |color_thief::Color {
+         r: red,
+         g: green,
+         b: blue,
+       }| {
+        super::Rgba {
+          red,
+          green,
+          blue,
+          alpha: 1.0,
+        }
+      },
+    )
+    .collect::<Vec<_>>();
+
+  tracing::debug! {
+    "Generated palette of {} colors {}",
+    palette.len(),
+    palette.iter().fold(
+      String::new(),
+      |acc, super::Rgba { red, green, blue, alpha }| {
+        acc
+          + format!("\nrgba({red}, {green}, {blue}, {alpha})")
+            .truecolor(*red, *green, *blue)
+            .to_string()
+            .as_str()
+      },
+    ) + "\n"
+  };
+
+  Ok(super::Colors { palette })
 }

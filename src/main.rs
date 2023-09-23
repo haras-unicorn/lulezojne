@@ -140,7 +140,9 @@ async fn main() -> anyhow::Result<()> {
       main: extrapolate::ansi::MainConfig {
         mix_factor: config.ansi.main.mix_factor,
         lightness_range: config.ansi.main.lightness_range,
+        bright_lightness_range: config.ansi.main.bright_lightness_range,
         saturation_range: config.ansi.main.saturation_range,
+        hue_tolerance: config.ansi.main.hue_tolerance,
       },
       gradient_mix_factor: config.ansi.gradient_mix_factor,
       grayscale_mix_factor: config.ansi.grayscale_mix_factor,
