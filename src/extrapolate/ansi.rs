@@ -103,73 +103,41 @@ lazy_static! {
 }
 
 pub fn from(palette: Vec<Rgba>, config: Config) -> Result {
-  let palette = from_rgba(&palette);
+  let palette = from_rgba(palette);
 
   Result {
     main: ResultMain {
-      black: mix_hue_closest_to(&palette, *BLACK, config.main.mix_factor),
-      red: mix_hue_closest_to(&palette, *RED, config.main.mix_factor),
-      green: mix_hue_closest_to(&palette, *GREEN, config.main.mix_factor),
-      blue: mix_hue_closest_to(&palette, *BLUE, config.main.mix_factor),
-      cyan: mix_hue_closest_to(&palette, *CYAN, config.main.mix_factor),
-      yellow: mix_hue_closest_to(&palette, *YELLOW, config.main.mix_factor),
-      magenta: mix_hue_closest_to(&palette, *MAGENTA, config.main.mix_factor),
-      grey: mix_hue_closest_to(&palette, *GREY, config.main.mix_factor),
-      bright_grey: mix_hue_closest_to(
-        &palette,
-        *BRIGHT_GREY,
-        config.main.mix_factor,
-      ),
-      bright_red: mix_hue_closest_to(
-        &palette,
-        *BRIGHT_RED,
-        config.main.mix_factor,
-      ),
-      bright_green: mix_hue_closest_to(
-        &palette,
-        *BRIGHT_GREEN,
-        config.main.mix_factor,
-      ),
-      bright_blue: mix_hue_closest_to(
-        &palette,
-        *BRIGHT_BLUE,
-        config.main.mix_factor,
-      ),
-      bright_cyan: mix_hue_closest_to(
-        &palette,
-        *BRIGHT_CYAN,
-        config.main.mix_factor,
-      ),
-      bright_yellow: mix_hue_closest_to(
-        &palette,
-        *BRIGHT_YELLOW,
-        config.main.mix_factor,
-      ),
-      bright_magenta: mix_hue_closest_to(
-        &palette,
-        *BRIGHT_MAGENTA,
-        config.main.mix_factor,
-      ),
-      white: mix_hue_closest_to(&palette, *WHITE, config.main.mix_factor),
+      black: make_main_color(&palette, *BLACK, &config),
+      red: make_main_color(&palette, *RED, &config),
+      green: make_main_color(&palette, *GREEN, &config),
+      blue: make_main_color(&palette, *BLUE, &config),
+      cyan: make_main_color(&palette, *CYAN, &config),
+      yellow: make_main_color(&palette, *YELLOW, &config),
+      magenta: make_main_color(&palette, *MAGENTA, &config),
+      grey: make_main_color(&palette, *GREY, &config),
+      bright_grey: make_main_color(&palette, *BRIGHT_GREY, &config),
+      bright_red: make_main_color(&palette, *BRIGHT_RED, &config),
+      bright_green: make_main_color(&palette, *BRIGHT_GREEN, &config),
+      bright_blue: make_main_color(&palette, *BRIGHT_BLUE, &config),
+      bright_cyan: make_main_color(&palette, *BRIGHT_CYAN, &config),
+      bright_yellow: make_main_color(&palette, *BRIGHT_YELLOW, &config),
+      bright_magenta: make_main_color(&palette, *BRIGHT_MAGENTA, &config),
+      white: make_main_color(&palette, *WHITE, &config),
     },
     gradient: (*GRADIENT)
       .iter()
-      .map(|color| {
-        mix_color_closest_to(&palette, *color, config.gradient_mix_factor)
-      })
+      .map(|color| make_gradient_color(&palette, *color, &config))
       .collect(),
     grayscale: (*GRAYSCALE)
       .iter()
-      .map(|color| {
-        mix_color_closest_to(&palette, *color, config.grayscale_mix_factor)
-      })
+      .map(|color| make_grayscale_color(&palette, *color, &config))
       .collect(),
   }
 }
 
-fn from_rgba(palette: &[Rgba]) -> Vec<Color> {
+fn from_rgba(mut palette: Vec<Rgba>) -> Vec<Color> {
   palette
-    .iter()
+    .drain(0..)
     .map(
       |Rgba {
          red,
@@ -178,8 +146,7 @@ fn from_rgba(palette: &[Rgba]) -> Vec<Color> {
          alpha,
        }| {
         ContinuousRgba::from_linear(
-          DiscreteRgba::new(*red, *green, *blue, *alpha)
-            .into_format::<f32, f32>(),
+          DiscreteRgba::new(red, green, blue, alpha).into_format::<f32, f32>(),
         )
         .into_color()
       },
@@ -187,29 +154,76 @@ fn from_rgba(palette: &[Rgba]) -> Vec<Color> {
     .collect()
 }
 
-fn mix_color_closest_to(palette: &[Color], color: Color, factor: f32) -> Rgba {
-  to_rgba(&mix_color(
+fn make_main_color(palette: &[Color], color: Color, config: &Config) -> Rgba {
+  to_rgba(clamp_saturation_lightness(
+    mix_hue_closest_to(palette, color, config.main.mix_factor),
+    config.main.saturation_range,
+    config.main.lightness_range,
+  ))
+}
+
+fn make_gradient_color(
+  palette: &[Color],
+  color: Color,
+  config: &Config,
+) -> Rgba {
+  to_rgba(mix_color_closest_to(
+    palette,
+    color,
+    config.gradient_mix_factor,
+  ))
+}
+
+fn make_grayscale_color(
+  palette: &[Color],
+  color: Color,
+  config: &Config,
+) -> Rgba {
+  to_rgba(mix_color_closest_to(
+    palette,
+    color,
+    config.grayscale_mix_factor,
+  ))
+}
+
+fn clamp_saturation_lightness(
+  color: Color,
+  saturation_range: (f32, f32),
+  lightness_range: (f32, f32),
+) -> Color {
+  Color::new(
+    color.hue,
+    color
+      .saturation
+      .clamp(saturation_range.0, saturation_range.1),
+    color.lightness.clamp(lightness_range.0, lightness_range.1),
+    color.alpha,
+  )
+}
+
+fn mix_color_closest_to(palette: &[Color], color: Color, factor: f32) -> Color {
+  mix_color(
     color,
     closest_color(palette, color).unwrap_or_default(),
     factor,
-  ))
+  )
 }
 
-fn mix_hue_closest_to(palette: &[Color], color: Color, factor: f32) -> Rgba {
-  to_rgba(&mix_hue(
+fn mix_hue_closest_to(palette: &[Color], color: Color, factor: f32) -> Color {
+  mix_hue(
     color,
     closest_hue(palette, color).unwrap_or_default(),
     factor,
-  ))
+  )
 }
 
-fn to_rgba(color: &Color) -> Rgba {
+fn to_rgba(color: Color) -> Rgba {
   let DiscreteRgba {
     color: DiscreteRgb {
       red, green, blue, ..
     },
     alpha,
-  } = IntoColor::<ContinuousRgba>::into_color(*color)
+  } = IntoColor::<ContinuousRgba>::into_color(color)
     .into_linear::<f32, f32>()
     .into_format::<u8, f32>();
   Rgba {

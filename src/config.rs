@@ -264,7 +264,7 @@ impl Default for ScolorqConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnsiConfig {
-  #[serde(default = "AnsiConfig::default_main")]
+  #[serde(default)]
   pub main: AnsiMainConfig,
 
   #[serde(default = "AnsiConfig::default_gradient_mix_factor")]
@@ -274,24 +274,11 @@ pub struct AnsiConfig {
   pub grayscale_mix_factor: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnsiMainConfig {
-  pub mix_factor: f32,
-  pub saturation_range: (f32, f32),
-  pub lightness_range: (f32, f32),
-}
-
 impl AnsiConfig {
-  fn default_main() -> AnsiMainConfig {
-    AnsiMainConfig {
-      mix_factor: 0.8,
-      saturation_range: (0.6, 0.9),
-      lightness_range: (0.7, 1.0),
-    }
-  }
   fn default_gradient_mix_factor() -> f32 {
     0.7
   }
+
   fn default_grayscale_mix_factor() -> f32 {
     0.4
   }
@@ -300,9 +287,45 @@ impl AnsiConfig {
 impl Default for AnsiConfig {
   fn default() -> Self {
     Self {
-      main: Self::default_main(),
+      main: Default::default(),
       gradient_mix_factor: Self::default_gradient_mix_factor(),
       grayscale_mix_factor: Self::default_grayscale_mix_factor(),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnsiMainConfig {
+  #[serde(default = "AnsiMainConfig::default_mix_factor")]
+  pub mix_factor: f32,
+
+  #[serde(default = "AnsiMainConfig::default_saturation_range")]
+  pub saturation_range: (f32, f32),
+
+  #[serde(default = "AnsiMainConfig::default_lightness_range")]
+  pub lightness_range: (f32, f32),
+}
+
+impl AnsiMainConfig {
+  pub fn default_mix_factor() -> f32 {
+    0.8
+  }
+
+  pub fn default_saturation_range() -> (f32, f32) {
+    (0.6, 0.9)
+  }
+
+  pub fn default_lightness_range() -> (f32, f32) {
+    (0.7, 1.0)
+  }
+}
+
+impl Default for AnsiMainConfig {
+  fn default() -> Self {
+    Self {
+      mix_factor: Self::default_mix_factor(),
+      saturation_range: Self::default_saturation_range(),
+      lightness_range: Self::default_lightness_range(),
     }
   }
 }
