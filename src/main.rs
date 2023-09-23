@@ -137,9 +137,13 @@ async fn main() -> anyhow::Result<()> {
       )
       .collect(),
     extrapolate::ansi::Config {
-      main_factor: config.ansi.main_factor,
-      gradient_factor: config.ansi.gradient_factor,
-      grayscale_factor: config.ansi.grayscale_factor,
+      main: extrapolate::ansi::MainConfig {
+        mix_factor: config.ansi.main.mix_factor,
+        lightness_range: config.ansi.main.lightness_range,
+        saturation_range: config.ansi.main.saturation_range,
+      },
+      gradient_mix_factor: config.ansi.gradient_mix_factor,
+      grayscale_mix_factor: config.ansi.grayscale_mix_factor,
     },
   );
 

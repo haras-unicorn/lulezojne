@@ -3,9 +3,16 @@ use palette::{IntoColor, Mix};
 
 #[derive(Debug, Clone)]
 pub struct Config {
-  pub main_factor: f32,
-  pub gradient_factor: f32,
-  pub grayscale_factor: f32,
+  pub main: MainConfig,
+  pub gradient_mix_factor: f32,
+  pub grayscale_mix_factor: f32,
+}
+
+#[derive(Debug, Clone)]
+pub struct MainConfig {
+  pub mix_factor: f32,
+  pub lightness_range: (f32, f32),
+  pub saturation_range: (f32, f32),
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +50,8 @@ pub struct Rgba {
   pub alpha: f32,
 }
 
-type Color = palette::Oklaba<f32>;
+type Color = palette::Okhsla<f32>;
+type Hue = palette::OklabHue<f32>;
 type ContinuonsRgb = palette::Srgb<f32>;
 type ContinuousRgba = palette::Alpha<ContinuonsRgb, f32>;
 type DiscreteRgb = palette::LinSrgb<u8>;
@@ -99,38 +107,62 @@ pub fn from(palette: Vec<Rgba>, config: Config) -> Result {
 
   Result {
     main: ResultMain {
-      black: mix_closest_to(&palette, *BLACK, config.main_factor),
-      red: mix_closest_to(&palette, *RED, config.main_factor),
-      green: mix_closest_to(&palette, *GREEN, config.main_factor),
-      blue: mix_closest_to(&palette, *BLUE, config.main_factor),
-      cyan: mix_closest_to(&palette, *CYAN, config.main_factor),
-      yellow: mix_closest_to(&palette, *YELLOW, config.main_factor),
-      magenta: mix_closest_to(&palette, *MAGENTA, config.main_factor),
-      grey: mix_closest_to(&palette, *GREY, config.main_factor),
-      bright_grey: mix_closest_to(&palette, *BRIGHT_GREY, config.main_factor),
-      bright_red: mix_closest_to(&palette, *BRIGHT_RED, config.main_factor),
-      bright_green: mix_closest_to(&palette, *BRIGHT_GREEN, config.main_factor),
-      bright_blue: mix_closest_to(&palette, *BRIGHT_BLUE, config.main_factor),
-      bright_cyan: mix_closest_to(&palette, *BRIGHT_CYAN, config.main_factor),
-      bright_yellow: mix_closest_to(
+      black: mix_hue_closest_to(&palette, *BLACK, config.main.mix_factor),
+      red: mix_hue_closest_to(&palette, *RED, config.main.mix_factor),
+      green: mix_hue_closest_to(&palette, *GREEN, config.main.mix_factor),
+      blue: mix_hue_closest_to(&palette, *BLUE, config.main.mix_factor),
+      cyan: mix_hue_closest_to(&palette, *CYAN, config.main.mix_factor),
+      yellow: mix_hue_closest_to(&palette, *YELLOW, config.main.mix_factor),
+      magenta: mix_hue_closest_to(&palette, *MAGENTA, config.main.mix_factor),
+      grey: mix_hue_closest_to(&palette, *GREY, config.main.mix_factor),
+      bright_grey: mix_hue_closest_to(
+        &palette,
+        *BRIGHT_GREY,
+        config.main.mix_factor,
+      ),
+      bright_red: mix_hue_closest_to(
+        &palette,
+        *BRIGHT_RED,
+        config.main.mix_factor,
+      ),
+      bright_green: mix_hue_closest_to(
+        &palette,
+        *BRIGHT_GREEN,
+        config.main.mix_factor,
+      ),
+      bright_blue: mix_hue_closest_to(
+        &palette,
+        *BRIGHT_BLUE,
+        config.main.mix_factor,
+      ),
+      bright_cyan: mix_hue_closest_to(
+        &palette,
+        *BRIGHT_CYAN,
+        config.main.mix_factor,
+      ),
+      bright_yellow: mix_hue_closest_to(
         &palette,
         *BRIGHT_YELLOW,
-        config.main_factor,
+        config.main.mix_factor,
       ),
-      bright_magenta: mix_closest_to(
+      bright_magenta: mix_hue_closest_to(
         &palette,
         *BRIGHT_MAGENTA,
-        config.main_factor,
+        config.main.mix_factor,
       ),
-      white: mix_closest_to(&palette, *WHITE, config.main_factor),
+      white: mix_hue_closest_to(&palette, *WHITE, config.main.mix_factor),
     },
     gradient: (*GRADIENT)
       .iter()
-      .map(|color| mix_closest_to(&palette, *color, config.gradient_factor))
+      .map(|color| {
+        mix_color_closest_to(&palette, *color, config.gradient_mix_factor)
+      })
       .collect(),
     grayscale: (*GRAYSCALE)
       .iter()
-      .map(|color| mix_closest_to(&palette, *color, config.grayscale_factor))
+      .map(|color| {
+        mix_color_closest_to(&palette, *color, config.grayscale_mix_factor)
+      })
       .collect(),
   }
 }
@@ -146,7 +178,7 @@ fn from_rgba(palette: &[Rgba]) -> Vec<Color> {
          alpha,
        }| {
         ContinuousRgba::from_linear(
-          DiscreteRgba::from_components((*red, *green, *blue, *alpha))
+          DiscreteRgba::new(*red, *green, *blue, *alpha)
             .into_format::<f32, f32>(),
         )
         .into_color()
@@ -155,10 +187,18 @@ fn from_rgba(palette: &[Rgba]) -> Vec<Color> {
     .collect()
 }
 
-fn mix_closest_to(palette: &[Color], color: Color, factor: f32) -> Rgba {
-  to_rgba(&mix(
+fn mix_color_closest_to(palette: &[Color], color: Color, factor: f32) -> Rgba {
+  to_rgba(&mix_color(
     color,
-    closest_to(palette, color).unwrap_or_default(),
+    closest_color(palette, color).unwrap_or_default(),
+    factor,
+  ))
+}
+
+fn mix_hue_closest_to(palette: &[Color], color: Color, factor: f32) -> Rgba {
+  to_rgba(&mix_hue(
+    color,
+    closest_hue(palette, color).unwrap_or_default(),
     factor,
   ))
 }
@@ -180,30 +220,52 @@ fn to_rgba(color: &Color) -> Rgba {
   }
 }
 
-fn closest_to(palette: &[Color], reference: Color) -> Option<Color> {
+fn closest_color(palette: &[Color], reference: Color) -> Option<Color> {
+  let ref_lab: palette::Oklaba<f32> = reference.into_color();
   palette
     .iter()
     .min_by(|x, y| {
+      let x_lab: palette::Oklaba<f32> = (**x).into_color();
+      let y_lab: palette::Oklaba<f32> = (**y).into_color();
       let dist_x = palette::color_difference::HyAb::hybrid_distance(
-        x.color,
-        reference.color,
+        x_lab.color,
+        ref_lab.color,
       );
       let dist_y = palette::color_difference::HyAb::hybrid_distance(
-        y.color,
-        reference.color,
+        y_lab.color,
+        ref_lab.color,
       );
       dist_x.total_cmp(&dist_y)
     })
     .cloned()
 }
 
-fn mix(lhs: Color, rhs: Color, factor: f32) -> Color {
-  lhs.mix(rhs, factor)
+fn mix_color(base: Color, color: Color, factor: f32) -> Color {
+  base.mix(color, factor)
+}
+
+fn closest_hue(palette: &[Color], reference: Color) -> Option<Color> {
+  palette
+    .iter()
+    .min_by(|x, y| {
+      let dist_x = (x.hue.into_radians() - reference.hue.into_radians()).abs();
+      let dist_y = (y.hue.into_radians() - reference.hue.into_radians()).abs();
+      dist_x.total_cmp(&dist_y)
+    })
+    .cloned()
+}
+
+fn mix_hue(base: Color, color: Color, factor: f32) -> Color {
+  let hue = Hue::from_radians(
+    (1.0 - factor) * base.hue.into_radians()
+      + factor * color.hue.into_radians(),
+  );
+  Color::new(hue, base.saturation, base.lightness, base.alpha)
 }
 
 fn opaque(r: u8, g: u8, b: u8) -> Color {
   ContinuousRgba::from_linear(
-    DiscreteRgba::from_components((r, g, b, 1.0)).into_format::<f32, f32>(),
+    DiscreteRgba::new(r, g, b, 1.0).into_format::<f32, f32>(),
   )
   .into_color()
 }
