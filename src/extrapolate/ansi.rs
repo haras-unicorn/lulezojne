@@ -1,3 +1,4 @@
+use colored::Colorize;
 use palette::{IntoColor, Mix, ShiftHue, WithHue};
 
 #[derive(Debug, Clone)]
@@ -213,19 +214,22 @@ fn make_grayscale_color(
   ))
 }
 
+#[tracing::instrument(skip_all)]
 fn clamp_saturation_lightness(
   color: Color,
   saturation_range: (f32, f32),
   lightness_range: (f32, f32),
 ) -> Color {
-  Color::new(
+  let result = Color::new(
     color.hue,
     color
       .saturation
       .clamp(saturation_range.0, saturation_range.1),
     color.lightness.clamp(lightness_range.0, lightness_range.1),
     color.alpha,
-  )
+  );
+  color_change_dbg(color, result);
+  result
 }
 
 fn mix_color_closest_to(palette: &[Color], color: Color, factor: f32) -> Color {
@@ -290,37 +294,47 @@ fn mix_color(base: Color, color: Color, factor: f32) -> Color {
   base.mix(color, factor)
 }
 
+#[tracing::instrument(skip_all)]
 fn closest_or_complement(
   palette: &[Color],
   reference: Color,
   tolerance: f32,
 ) -> Option<Color> {
-  let closest = closest_hue(palette, reference);
-  match closest {
-    None => return None,
-    Some(closest) => {
-      let closest_difference = hue_difference(closest.hue, reference.hue);
-      if closest_difference < tolerance {
-        return Some(closest);
-      }
+  let closest = {
+    let closest = closest_hue(palette, reference);
+    match closest {
+      None => return None,
+      Some(closest) => {
+        let closest_difference = hue_difference(closest.hue, reference.hue);
+        if closest_difference < tolerance {
+          return Some(closest);
+        }
 
-      let complement = reference.shift_hue(180.0f32);
-      let closest_complement = closest_hue(palette, complement);
+        let complement = reference.shift_hue(180.0f32);
+        let closest_complement = closest_hue(palette, complement);
 
-      match closest_complement {
-        None => return None,
-        Some(closest_complement) => {
-          let closest_complement_difference =
-            hue_difference(closest_complement.hue, complement.hue);
-          Some(if closest_complement_difference < closest_difference {
-            closest_complement.shift_hue(180.0f32)
-          } else {
-            closest
-          })
+        match closest_complement {
+          None => return None,
+          Some(closest_complement) => {
+            let closest_complement_difference =
+              hue_difference(closest_complement.hue, complement.hue);
+            Some(if closest_complement_difference < closest_difference {
+              closest_complement.shift_hue(180.0f32)
+            } else {
+              closest
+            })
+          }
         }
       }
     }
-  }
+  };
+
+  match closest {
+    Some(color) => color_change_dbg(reference, color),
+    None => return None,
+  };
+
+  closest
 }
 
 fn closest_hue(palette: &[Color], reference: Color) -> Option<Color> {
@@ -338,12 +352,18 @@ fn hue_difference(lhs: Hue, rhs: Hue) -> f32 {
   (lhs.into_degrees() - rhs.into_degrees()).abs()
 }
 
+#[tracing::instrument(skip_all)]
 fn mix_hue(base: Color, color: Color, factor: f32) -> Color {
-  let hue = Hue::from_degrees(
-    (1.0 - factor) * base.hue.into_degrees()
-      + factor * color.hue.into_degrees(),
-  );
-  base.with_hue(hue)
+  let base_deg = base.hue.into_degrees();
+  let color_deg = color.hue.into_degrees();
+  let diff = color_deg - base_deg;
+  let deg = base_deg + factor * diff;
+
+  let hue = Hue::from_degrees(deg);
+  let result = base.with_hue(hue);
+  dbg!(color, base, result);
+  color_change_dbg(color, result);
+  result
 }
 
 fn opaque(r: u8, g: u8, b: u8) -> Color {
@@ -351,4 +371,30 @@ fn opaque(r: u8, g: u8, b: u8) -> Color {
     DiscreteRgba::new(r, g, b, 1.0).into_format::<f32, f32>(),
   )
   .into_color()
+}
+
+fn color_change_dbg(start: Color, end: Color) {
+  let Rgba {
+    red,
+    green,
+    blue,
+    alpha,
+  } = to_rgba(start);
+  let start = format!("rgba({red}, {green}, {blue}, {alpha})")
+    .truecolor(red, green, blue)
+    .to_string();
+  let Rgba {
+    red,
+    green,
+    blue,
+    alpha,
+  } = to_rgba(end);
+  let end = format!("rgba({red}, {green}, {blue}, {alpha})")
+    .truecolor(red, green, blue)
+    .to_string();
+  tracing::debug! {
+    "{} -> {}",
+    start,
+    end
+  }
 }
