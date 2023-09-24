@@ -151,12 +151,12 @@ fn from_rgba(mut palette: Vec<Rgba>) -> Vec<Color> {
          blue,
          alpha,
        }| {
-        ContinuousRgba::from_linear(
+        IntoColor::<Color>::into_color(ContinuousRgba::from_linear(
           DiscreteRgba::new(red, green, blue, alpha).into_format::<f32, f32>(),
-        )
-        .into_color()
+        ))
       },
     )
+    .filter(|color| color.lightness > 0.1)
     .collect()
 }
 
@@ -303,26 +303,26 @@ fn closest_or_complement(
   let closest = {
     let closest = closest_hue(palette, reference);
     match closest {
-      None => return None,
+      None => None,
       Some(closest) => {
         let closest_difference = hue_difference(closest.hue, reference.hue);
         if closest_difference < tolerance {
-          return Some(closest);
-        }
+          Some(closest)
+        } else {
+          let complement = reference.shift_hue(180.0f32);
+          let closest_complement = closest_hue(palette, complement);
 
-        let complement = reference.shift_hue(180.0f32);
-        let closest_complement = closest_hue(palette, complement);
-
-        match closest_complement {
-          None => return None,
-          Some(closest_complement) => {
-            let closest_complement_difference =
-              hue_difference(closest_complement.hue, complement.hue);
-            Some(if closest_complement_difference < closest_difference {
-              closest_complement.shift_hue(180.0f32)
-            } else {
-              closest
-            })
+          match closest_complement {
+            None => None,
+            Some(closest_complement) => {
+              let closest_complement_difference =
+                hue_difference(closest_complement.hue, complement.hue);
+              Some(if closest_complement_difference < closest_difference {
+                closest_complement.shift_hue(180.0f32)
+              } else {
+                closest
+              })
+            }
           }
         }
       }
@@ -331,7 +331,7 @@ fn closest_or_complement(
 
   match closest {
     Some(color) => color_change_dbg(reference, color),
-    None => return None,
+    None => (),
   };
 
   closest
@@ -361,7 +361,6 @@ fn mix_hue(base: Color, color: Color, factor: f32) -> Color {
 
   let hue = Hue::from_degrees(deg);
   let result = base.with_hue(hue);
-  dbg!(color, base, result);
   color_change_dbg(color, result);
   result
 }

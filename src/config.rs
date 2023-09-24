@@ -330,7 +330,7 @@ impl AnsiMainConfig {
   }
 
   pub fn default_hue_tolerance() -> f32 {
-    360.0f32 / 12.0f32
+    360.0f32 / 6.0f32
   }
 }
 
