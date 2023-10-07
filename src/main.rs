@@ -68,10 +68,15 @@ async fn main() -> anyhow::Result<()> {
     }
     args::Backend::KmeansGpu => {
       let kmeans_gpu_config = colors::kmeans_gpu::KmeansGpuConfig {
-        runs: config.kmeans_gpu.runs,
-        k: config.kmeans_gpu.k,
-        converge: config.kmeans_gpu.converge,
-        max_iter: config.kmeans_gpu.max_iter,
+        count: config.kmeans_gpu.count,
+        algorithm: match config.kmeans_gpu.algorithm {
+          config::KmeansGpuAlgorithm::Kmeans => {
+            colors::kmeans_gpu::KmeansGpuAlgorithm::Kmeans
+          }
+          config::KmeansGpuAlgorithm::Octree => {
+            colors::kmeans_gpu::KmeansGpuAlgorithm::Octree
+          }
+        },
       };
       colors::kmeans_gpu::prominent(generation.image, kmeans_gpu_config).await?
     }

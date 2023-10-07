@@ -18,6 +18,7 @@ handlebars = "4.4.0"
 image = "0.24.7"
 iris-lib = { version = "0.1.0", features = ["image"] }
 itertools = "0.11.0"
+kmeans-color-gpu = "0.1.0"
 kmeans_colors = { version = "0.6.0", features = ["palette_color"] }
 lazy_static = "1.4.0"
 num_cpus = "1.16.0"

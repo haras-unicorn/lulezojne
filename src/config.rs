@@ -70,41 +70,34 @@ impl Default for KmeansConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KmeansGpuConfig {
-  #[serde(default = "KmeansGpuConfig::default_runs")]
-  pub runs: u64,
+  #[serde(default = "KmeansGpuConfig::default_count")]
+  pub count: u32,
 
-  #[serde(default = "KmeansGpuConfig::default_k")]
-  pub k: usize,
+  #[serde(default = "KmeansGpuConfig::default_algorithm")]
+  pub algorithm: KmeansGpuAlgorithm,
+}
 
-  #[serde(default = "KmeansGpuConfig::default_max_iter")]
-  pub max_iter: usize,
-
-  #[serde(default = "KmeansGpuConfig::default_converge")]
-  pub converge: f32,
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub enum KmeansGpuAlgorithm {
+  #[default]
+  Kmeans,
+  Octree,
 }
 
 impl KmeansGpuConfig {
-  fn default_runs() -> u64 {
-    num_cpus::get().try_into().unwrap_or_default()
-  }
-  fn default_k() -> usize {
+  fn default_count() -> u32 {
     256
   }
-  fn default_max_iter() -> usize {
-    300
-  }
-  fn default_converge() -> f32 {
-    0.2
+  fn default_algorithm() -> KmeansGpuAlgorithm {
+    KmeansGpuAlgorithm::Kmeans
   }
 }
 
 impl Default for KmeansGpuConfig {
   fn default() -> Self {
     Self {
-      runs: KmeansGpuConfig::default_runs(),
-      k: KmeansGpuConfig::default_k(),
-      max_iter: KmeansGpuConfig::default_max_iter(),
-      converge: KmeansGpuConfig::default_converge(),
+      count: Self::default_count(),
+      algorithm: Self::default_algorithm(),
     }
   }
 }
