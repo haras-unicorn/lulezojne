@@ -49,6 +49,10 @@
                           }
                         ''';
                         "in" = "~/.config/someprogram/colors.json";
+                        "then" = {
+                          command = "echo";
+                          args = [ "Done!" ];
+                        };
                       }
                     ]
                   }

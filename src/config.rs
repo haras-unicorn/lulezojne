@@ -310,6 +310,18 @@ pub struct PlopDefinition {
 
   #[serde(rename = "in")]
   pub destination_path: String,
+
+  #[serde(rename = "then")]
+  pub to_exec: Option<PlopExec>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlopExec {
+  #[serde(rename = "command")]
+  pub command: String,
+
+  #[serde(rename = "args")]
+  pub args: Option<Vec<String>>,
 }
 
 pub async fn read(config_location: Option<String>) -> anyhow::Result<Config> {

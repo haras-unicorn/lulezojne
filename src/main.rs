@@ -174,9 +174,16 @@ async fn main() -> anyhow::Result<()> {
               |config::PlopDefinition {
                  template_or_path,
                  destination_path,
+                 to_exec,
                }| plop::Definition {
                 template_or_path,
                 destination_path,
+                to_exec: match to_exec {
+                  Some(config::PlopExec { command, args }) => {
+                    Some(plop::DefinitionExec { command, args })
+                  }
+                  None => None,
+                },
               },
             )
             .collect(),

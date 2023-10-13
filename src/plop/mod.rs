@@ -54,6 +54,13 @@ pub struct Config {
 pub struct Definition {
   pub template_or_path: String,
   pub destination_path: String,
+  pub to_exec: Option<DefinitionExec>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DefinitionExec {
+  pub command: String,
+  pub args: Option<Vec<String>>,
 }
 
 #[tracing::instrument(skip_all)]
@@ -68,6 +75,7 @@ pub async fn many(context: Context, config: Config) -> anyhow::Result<()> {
           definition.template_or_path
         },
         destination_path: expand(definition.destination_path.clone())?,
+        to_exec: definition.to_exec,
       })
     }
     definitions
@@ -131,8 +139,22 @@ async fn plop<'a>(
 
   let rendered =
     registry.render_with_context(&definition.template_or_path, context)?;
+  let dirname = std::path::Path::new(&definition.destination_path).parent();
+  if let Some(dirname) = dirname {
+    if !tokio::fs::try_exists(dirname).await? {
+      tokio::fs::create_dir_all(dirname).await?;
+    }
+  }
   tokio::fs::write(definition.destination_path.as_str(), rendered.into_bytes())
     .await?;
+
+  if let Some(to_exec) = definition.to_exec {
+    let mut command = tokio::process::Command::new(to_exec.command);
+    if let Some(args) = to_exec.args {
+      command.args(args);
+    }
+    command.status().await?;
+  }
 
   Ok(())
 }
