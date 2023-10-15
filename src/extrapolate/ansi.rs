@@ -1,11 +1,18 @@
+use colored::Colorize;
 use lazy_static::lazy_static;
-use palette::{IntoColor, Mix};
+use palette::IntoColor;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Config {
-  pub main_factor: f32,
-  pub gradient_factor: f32,
-  pub grayscale_factor: f32,
+  pub main: AreaConfig,
+  pub gradient: AreaConfig,
+  pub grayscale: AreaConfig,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct AreaConfig {
+  pub saturation_factor: f32,
+  pub lightness_factor: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -24,15 +31,15 @@ pub struct ResultMain {
   pub cyan: Rgba,
   pub yellow: Rgba,
   pub magenta: Rgba,
-  pub grey: Rgba,
-  pub bright_grey: Rgba,
+  pub white: Rgba,
+  pub bright_black: Rgba,
   pub bright_red: Rgba,
   pub bright_green: Rgba,
   pub bright_blue: Rgba,
   pub bright_cyan: Rgba,
   pub bright_yellow: Rgba,
   pub bright_magenta: Rgba,
-  pub white: Rgba,
+  pub bright_white: Rgba,
 }
 
 #[derive(Debug, Clone)]
@@ -44,6 +51,7 @@ pub struct Rgba {
 }
 
 type Color = palette::Oklaba<f32>;
+type Hsla = palette::Okhsla<f32>;
 type ContinuonsRgb = palette::Srgb<f32>;
 type ContinuousRgba = palette::Alpha<ContinuonsRgb, f32>;
 type DiscreteRgb = palette::LinSrgb<u8>;
@@ -99,38 +107,30 @@ pub fn from(palette: Vec<Rgba>, config: Config) -> Result {
 
   Result {
     main: ResultMain {
-      black: mix_closest_to(&palette, *BLACK, config.main_factor),
-      red: mix_closest_to(&palette, *RED, config.main_factor),
-      green: mix_closest_to(&palette, *GREEN, config.main_factor),
-      blue: mix_closest_to(&palette, *BLUE, config.main_factor),
-      cyan: mix_closest_to(&palette, *CYAN, config.main_factor),
-      yellow: mix_closest_to(&palette, *YELLOW, config.main_factor),
-      magenta: mix_closest_to(&palette, *MAGENTA, config.main_factor),
-      grey: mix_closest_to(&palette, *GREY, config.main_factor),
-      bright_grey: mix_closest_to(&palette, *BRIGHT_GREY, config.main_factor),
-      bright_red: mix_closest_to(&palette, *BRIGHT_RED, config.main_factor),
-      bright_green: mix_closest_to(&palette, *BRIGHT_GREEN, config.main_factor),
-      bright_blue: mix_closest_to(&palette, *BRIGHT_BLUE, config.main_factor),
-      bright_cyan: mix_closest_to(&palette, *BRIGHT_CYAN, config.main_factor),
-      bright_yellow: mix_closest_to(
-        &palette,
-        *BRIGHT_YELLOW,
-        config.main_factor,
-      ),
-      bright_magenta: mix_closest_to(
-        &palette,
-        *BRIGHT_MAGENTA,
-        config.main_factor,
-      ),
-      white: mix_closest_to(&palette, *WHITE, config.main_factor),
+      black: mix_closest_to(&palette, *BLACK, config.main),
+      red: mix_closest_to(&palette, *RED, config.main),
+      green: mix_closest_to(&palette, *GREEN, config.main),
+      blue: mix_closest_to(&palette, *BLUE, config.main),
+      cyan: mix_closest_to(&palette, *CYAN, config.main),
+      yellow: mix_closest_to(&palette, *YELLOW, config.main),
+      magenta: mix_closest_to(&palette, *MAGENTA, config.main),
+      white: mix_closest_to(&palette, *GREY, config.main),
+      bright_black: mix_closest_to(&palette, *BRIGHT_GREY, config.main),
+      bright_red: mix_closest_to(&palette, *BRIGHT_RED, config.main),
+      bright_green: mix_closest_to(&palette, *BRIGHT_GREEN, config.main),
+      bright_blue: mix_closest_to(&palette, *BRIGHT_BLUE, config.main),
+      bright_cyan: mix_closest_to(&palette, *BRIGHT_CYAN, config.main),
+      bright_yellow: mix_closest_to(&palette, *BRIGHT_YELLOW, config.main),
+      bright_magenta: mix_closest_to(&palette, *BRIGHT_MAGENTA, config.main),
+      bright_white: mix_closest_to(&palette, *WHITE, config.main),
     },
     gradient: (*GRADIENT)
       .iter()
-      .map(|color| mix_closest_to(&palette, *color, config.gradient_factor))
+      .map(|color| mix_closest_to(&palette, *color, config.gradient))
       .collect(),
     grayscale: (*GRAYSCALE)
       .iter()
-      .map(|color| mix_closest_to(&palette, *color, config.grayscale_factor))
+      .map(|color| mix_closest_to(&palette, *color, config.grayscale))
       .collect(),
   }
 }
@@ -145,25 +145,15 @@ fn from_rgba(palette: &[Rgba]) -> Vec<Color> {
          blue,
          alpha,
        }| {
-        ContinuousRgba::from_linear(
-          DiscreteRgba::from_components((*red, *green, *blue, *alpha))
-            .into_format::<f32, f32>(),
-        )
-        .into_color()
+        DiscreteRgba::new(*red, *green, *blue, *alpha)
+          .into_format::<f32, f32>()
+          .into_color()
       },
     )
     .collect()
 }
 
-fn mix_closest_to(palette: &[Color], color: Color, factor: f32) -> Rgba {
-  to_rgba(&mix(
-    color,
-    closest_to(palette, color).unwrap_or_default(),
-    factor,
-  ))
-}
-
-fn to_rgba(color: &Color) -> Rgba {
+fn to_rgba(color: Color) -> Rgba {
   let DiscreteRgba {
     color: DiscreteRgb {
       red, green, blue, ..
@@ -178,6 +168,19 @@ fn to_rgba(color: &Color) -> Rgba {
     blue,
     alpha,
   }
+}
+
+fn mix_closest_to(palette: &[Color], color: Color, config: AreaConfig) -> Rgba {
+  let closest = closest_to(palette, color).unwrap_or_default();
+  let mixed = mix(closest, color, config);
+  let result = to_rgba(mixed);
+
+  #[cfg(debug_assertions)]
+  {
+    print(color, closest, mixed, config);
+  }
+
+  result
 }
 
 fn closest_to(palette: &[Color], reference: Color) -> Option<Color> {
@@ -197,13 +200,76 @@ fn closest_to(palette: &[Color], reference: Color) -> Option<Color> {
     .cloned()
 }
 
-fn mix(lhs: Color, rhs: Color, factor: f32) -> Color {
-  lhs.mix(rhs, factor)
+fn mix(lhs: Color, rhs: Color, config: AreaConfig) -> Color {
+  let lhs_hsla = palette::IntoColor::<Hsla>::into_color(lhs);
+  let rhs_hsla = palette::IntoColor::<Hsla>::into_color(rhs);
+  let saturation = lhs_hsla.saturation
+    + (rhs_hsla.saturation - lhs_hsla.saturation) * config.saturation_factor;
+  let lightness = lhs_hsla.lightness
+    + (rhs_hsla.lightness - lhs_hsla.lightness) * config.lightness_factor;
+
+  Hsla::new(lhs_hsla.color.hue, saturation, lightness, rhs.alpha).into_color()
 }
 
 fn opaque(r: u8, g: u8, b: u8) -> Color {
   ContinuousRgba::from_linear(
-    DiscreteRgba::from_components((r, g, b, 1.0)).into_format::<f32, f32>(),
+    DiscreteRgba::new(r, g, b, 1.0).into_format::<f32, f32>(),
   )
   .into_color()
+}
+
+fn print(reference: Color, closest: Color, result: Color, config: AreaConfig) {
+  let Rgba {
+    red: reference_red,
+    green: reference_green,
+    blue: reference_blue,
+    alpha: reference_alpha,
+  } = to_rgba(reference);
+  let Rgba {
+    red: closest_red,
+    green: closest_green,
+    blue: closest_blue,
+    alpha: closest_alpha,
+  } = to_rgba(closest);
+  let Rgba {
+    red: result_red,
+    green: result_green,
+    blue: result_blue,
+    alpha: result_alpha,
+  } = to_rgba(result);
+
+  let reference = format!("rgba({reference_red}, {reference_green}, {reference_blue}, {reference_alpha})") 
+     .custom_color(colored::CustomColor {
+    r: reference_red,
+    g: reference_green,
+    b: reference_blue,
+  }).to_string();
+
+  let closest = format!(
+    "rgba({closest_red}, {closest_green}, {closest_blue}, {closest_alpha})"
+  )
+  .custom_color(colored::CustomColor {
+    r: closest_red,
+    g: closest_green,
+    b: closest_blue,
+  })
+  .to_string();
+
+  let result = format!(
+    "rgba({result_red}, {result_green}, {result_blue}, {result_alpha})"
+  )
+  .custom_color(colored::CustomColor {
+    r: result_red,
+    g: result_green,
+    b: result_blue,
+  })
+  .to_string();
+
+  let lightness_factor = config.lightness_factor;
+  let saturation_factor = config.saturation_factor;
+
+  let _ = std::io::Write::write_all(
+    &mut std::io::stdout(),
+    format!("{reference} -> ({closest}, {lightness_factor}, {saturation_factor}) -> {result}\n").as_bytes(),
+  );
 }

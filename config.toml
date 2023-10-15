@@ -1,8 +1,8 @@
 [[plop]]
-in = "/dev/stdout"
 template = """
   red = {{ rgba (set-alpha ansi.main.red 0.3) }}
   green = {{ rgb ansi.main.green }}
   blue = {{ hexa ansi.main.blue }}
 """
+in = "/dev/stdout"
 then = { command = "echo", args = ["Done!"] }

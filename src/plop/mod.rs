@@ -26,15 +26,15 @@ pub struct AnsiMain {
   pub cyan: Rgba,
   pub yellow: Rgba,
   pub magenta: Rgba,
-  pub grey: Rgba,
-  pub bright_grey: Rgba,
+  pub white: Rgba,
+  pub bright_black: Rgba,
   pub bright_red: Rgba,
   pub bright_green: Rgba,
   pub bright_blue: Rgba,
   pub bright_cyan: Rgba,
   pub bright_yellow: Rgba,
   pub bright_magenta: Rgba,
-  pub white: Rgba,
+  pub bright_white: Rgba,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

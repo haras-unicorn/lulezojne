@@ -12,15 +12,15 @@ pub async fn from(colors: super::Colors) -> anyhow::Result<()> {
   one(colors.ansi.main.cyan)?;
   one(colors.ansi.main.yellow)?;
   one(colors.ansi.main.magenta)?;
-  one(colors.ansi.main.grey)?;
-  one(colors.ansi.main.bright_grey)?;
+  one(colors.ansi.main.white)?;
+  one(colors.ansi.main.bright_black)?;
   one(colors.ansi.main.bright_red)?;
   one(colors.ansi.main.bright_green)?;
   one(colors.ansi.main.bright_blue)?;
   one(colors.ansi.main.bright_cyan)?;
   one(colors.ansi.main.bright_yellow)?;
   one(colors.ansi.main.bright_magenta)?;
-  one(colors.ansi.main.white)?;
+  one(colors.ansi.main.bright_white)?;
 
   std::io::stdout().write_all("\nGRADIENT:\n".as_bytes())?;
   for color in colors.ansi.gradient {

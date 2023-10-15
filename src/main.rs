@@ -132,9 +132,18 @@ async fn main() -> anyhow::Result<()> {
       )
       .collect(),
     extrapolate::ansi::Config {
-      main_factor: config.ansi.main_factor,
-      gradient_factor: config.ansi.gradient_factor,
-      grayscale_factor: config.ansi.grayscale_factor,
+      main: extrapolate::ansi::AreaConfig {
+        saturation_factor: config.ansi.main.saturation_factor,
+        lightness_factor: config.ansi.main.lightness_factor,
+      },
+      gradient: extrapolate::ansi::AreaConfig {
+        saturation_factor: config.ansi.gradient.saturation_factor,
+        lightness_factor: config.ansi.gradient.lightness_factor,
+      },
+      grayscale: extrapolate::ansi::AreaConfig {
+        saturation_factor: config.ansi.grayscale.saturation_factor,
+        lightness_factor: config.ansi.grayscale.lightness_factor,
+      },
     },
   );
 
@@ -151,15 +160,15 @@ async fn main() -> anyhow::Result<()> {
               cyan: ansi_to_plop(ansi.main.cyan),
               yellow: ansi_to_plop(ansi.main.yellow),
               magenta: ansi_to_plop(ansi.main.magenta),
-              grey: ansi_to_plop(ansi.main.grey),
-              bright_grey: ansi_to_plop(ansi.main.bright_grey),
+              white: ansi_to_plop(ansi.main.white),
+              bright_black: ansi_to_plop(ansi.main.bright_black),
               bright_red: ansi_to_plop(ansi.main.bright_red),
               bright_green: ansi_to_plop(ansi.main.bright_green),
               bright_blue: ansi_to_plop(ansi.main.bright_blue),
               bright_cyan: ansi_to_plop(ansi.main.bright_cyan),
               bright_yellow: ansi_to_plop(ansi.main.bright_yellow),
               bright_magenta: ansi_to_plop(ansi.main.bright_magenta),
-              white: ansi_to_plop(ansi.main.white),
+              bright_white: ansi_to_plop(ansi.main.bright_white),
             },
             gradient: ansi.gradient.drain(0..).map(ansi_to_plop).collect(),
             grayscale: ansi.grayscale.drain(0..).map(ansi_to_plop).collect(),
@@ -178,12 +187,9 @@ async fn main() -> anyhow::Result<()> {
                }| plop::Definition {
                 template_or_path,
                 destination_path,
-                to_exec: match to_exec {
-                  Some(config::PlopExec { command, args }) => {
-                    Some(plop::DefinitionExec { command, args })
-                  }
-                  None => None,
-                },
+                to_exec: to_exec.map(|config::PlopExec { command, args }| {
+                  plop::DefinitionExec { command, args }
+                }),
               },
             )
             .collect(),
@@ -202,15 +208,15 @@ async fn main() -> anyhow::Result<()> {
             cyan: ansi_to_print(ansi.main.cyan),
             yellow: ansi_to_print(ansi.main.yellow),
             magenta: ansi_to_print(ansi.main.magenta),
-            grey: ansi_to_print(ansi.main.grey),
-            bright_grey: ansi_to_print(ansi.main.bright_grey),
+            white: ansi_to_print(ansi.main.white),
+            bright_black: ansi_to_print(ansi.main.bright_black),
             bright_red: ansi_to_print(ansi.main.bright_red),
             bright_green: ansi_to_print(ansi.main.bright_green),
             bright_blue: ansi_to_print(ansi.main.bright_blue),
             bright_cyan: ansi_to_print(ansi.main.bright_cyan),
             bright_yellow: ansi_to_print(ansi.main.bright_yellow),
             bright_magenta: ansi_to_print(ansi.main.bright_magenta),
-            white: ansi_to_print(ansi.main.white),
+            bright_white: ansi_to_print(ansi.main.bright_white),
           },
           gradient: ansi.gradient.drain(0..).map(ansi_to_print).collect(),
           grayscale: ansi.grayscale.drain(0..).map(ansi_to_print).collect(),

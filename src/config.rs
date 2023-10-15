@@ -271,36 +271,52 @@ impl Default for ScolorqConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnsiConfig {
-  #[serde(default = "AnsiConfig::default_main_factor")]
-  pub main_factor: f32,
+  #[serde(default = "AnsiConfig::default_main")]
+  pub main: AnsiAreaConfig,
 
-  #[serde(default = "AnsiConfig::default_gradient_factor")]
-  pub gradient_factor: f32,
+  #[serde(default = "AnsiConfig::default_gradient")]
+  pub gradient: AnsiAreaConfig,
 
-  #[serde(default = "AnsiConfig::default_grayscale_factor")]
-  pub grayscale_factor: f32,
+  #[serde(default = "AnsiConfig::default_grayscale")]
+  pub grayscale: AnsiAreaConfig,
 }
 
 impl AnsiConfig {
-  fn default_main_factor() -> f32 {
-    0.8
+  fn default_main() -> AnsiAreaConfig {
+    AnsiAreaConfig {
+      lightness_factor: 0.6,
+      saturation_factor: 0.6,
+    }
   }
-  fn default_gradient_factor() -> f32 {
-    0.7
+  fn default_gradient() -> AnsiAreaConfig {
+    AnsiAreaConfig {
+      lightness_factor: 0.2,
+      saturation_factor: 0.8,
+    }
   }
-  fn default_grayscale_factor() -> f32 {
-    0.4
+  fn default_grayscale() -> AnsiAreaConfig {
+    AnsiAreaConfig {
+      lightness_factor: 0.8,
+      saturation_factor: 0.2,
+    }
   }
 }
 
 impl Default for AnsiConfig {
   fn default() -> Self {
     Self {
-      main_factor: Self::default_main_factor(),
-      gradient_factor: Self::default_gradient_factor(),
-      grayscale_factor: Self::default_grayscale_factor(),
+      main: Self::default_main(),
+      gradient: Self::default_gradient(),
+      grayscale: Self::default_grayscale(),
     }
   }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnsiAreaConfig {
+  pub lightness_factor: f32,
+
+  pub saturation_factor: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
