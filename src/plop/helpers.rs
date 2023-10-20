@@ -44,6 +44,38 @@ handlebars_helper!(HexaHelper: |color: Rgba| {
   format!("#{red:02X}{green:02X}{blue:02X}{alpha:02X}")
 });
 
+handlebars_helper!(VividHelper: |color: Rgba| {
+  let Rgba {
+    red,
+    green,
+    blue,
+    ..
+  } = color;
+  format!("{red:02X}{green:02X}{blue:02X}")
+});
+
+handlebars_helper!(HyprHelper: |color: Rgba| {
+  let Rgba {
+    red,
+    green,
+    blue,
+    ..
+  } = color;
+  format!("rgb({red:02X}{green:02X}{blue:02X})")
+});
+
+handlebars_helper!(HypraHelper: |color: Rgba| {
+  let Rgba {
+    red,
+    green,
+    blue,
+    alpha
+  } = color;
+  let alpha = (alpha * 255.0f32).round() as u8;
+
+  format!("rgba({red:02X}{green:02X}{blue:02X}{alpha:02X})")
+});
+
 handlebars_helper!(SetAlphaHelper: |color: Rgba, alpha: f32| {
   json!(Rgba {
     red: color.red,
@@ -118,6 +150,9 @@ pub fn register(handlebars: &mut handlebars::Handlebars) {
   handlebars.register_helper("hexa", Box::new(HexaHelper));
   handlebars.register_helper("rgb", Box::new(RgbHelper));
   handlebars.register_helper("rgba", Box::new(RgbaHelper));
+  handlebars.register_helper("vivid", Box::new(VividHelper));
+  handlebars.register_helper("hypr", Box::new(HyprHelper));
+  handlebars.register_helper("hypra", Box::new(HypraHelper));
   handlebars.register_helper("set-alpha", Box::new(SetAlphaHelper));
   handlebars.register_helper("set-lightness", Box::new(SetLightnessHelper));
   handlebars.register_helper("set-saturation", Box::new(SetSaturationHelper));
