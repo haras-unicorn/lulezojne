@@ -6,6 +6,7 @@
     clippy::unwrap_used,
     clippy::expect_used,
     clippy::panic,
+    clippy::unreachable,
     // reason = "We have to handle errors properly"
   )]
 #![deny(
@@ -13,12 +14,16 @@
   // reason = "Use tracing instead"
 )]
 
+use std::io::Write;
+
+use color::Color;
+
 mod args;
-mod colors;
+mod color;
 mod config;
+mod extract;
 mod extrapolate;
 mod plop;
-mod print;
 
 #[tokio::main]
 #[tracing::instrument]
@@ -45,222 +50,83 @@ async fn main() -> anyhow::Result<()> {
   };
   let config = config::read(config_location).await?;
 
-  let generation = match &args {
-    args::Args::Plop { generation, .. } => generation.clone(),
-    args::Args::Print { generation, .. } => generation.clone(),
-  };
-  let mut palette = match generation.backend {
-    args::Backend::Kmeans => {
-      let kmeans_config = colors::kmeans::KmeansConfig {
-        runs: config.kmeans.runs,
-        k: config.kmeans.k,
-        converge: config.kmeans.converge,
-        max_iter: config.kmeans.max_iter,
-      };
-      colors::kmeans::prominent(generation.image, kmeans_config).await?
-    }
-    args::Backend::Colorthief => {
-      let colorthief_config = colors::colorthief::ColorthiefConfig {
-        quality: config.colorthief.quality,
-        max_colors: config.colorthief.max_colors,
-      };
-      colors::colorthief::prominent(generation.image, colorthief_config).await?
-    }
-    args::Backend::KmeansGpu => {
-      let kmeans_gpu_config = colors::kmeans_gpu::KmeansGpuConfig {
-        runs: config.kmeans_gpu.runs,
-        k: config.kmeans_gpu.k,
-        converge: config.kmeans_gpu.converge,
-        max_iter: config.kmeans_gpu.max_iter,
-      };
-      colors::kmeans_gpu::prominent(generation.image, kmeans_gpu_config).await?
-    }
-    args::Backend::MedianCut => {
-      let median_cut_config = colors::median_cut::MedianCutConfig {
-        iterations: config.median_cut.iterations,
-      };
-      colors::median_cut::prominent(generation.image, median_cut_config).await?
-    }
-    args::Backend::Neoquant => {
-      let neoquant_config = colors::neoquant::NeoquantConfig {
-        sample_faction: config.neoquant.sample_faction,
-        colors: config.neoquant.colors,
-      };
-      colors::neoquant::prominent(generation.image, neoquant_config).await?
-    }
-    args::Backend::Scolorq => {
-      let scolorq_config = colors::scolorq::ScolorqConfig {
-        size: config.scolorq.size,
-        dither: config.scolorq.dither,
-        seed: config.scolorq.seed,
-        filter: match config.scolorq.filter {
-          config::ScolorqConfigFilter::One => {
-            colors::scolorq::ScolorqConfigFilter::One
-          }
-          config::ScolorqConfigFilter::Three => {
-            colors::scolorq::ScolorqConfigFilter::Three
-          }
-          config::ScolorqConfigFilter::Five => {
-            colors::scolorq::ScolorqConfigFilter::Five
-          }
-        },
-        iters: config.scolorq.iters,
-        repeats: config.scolorq.repeats,
-        start_temp: config.scolorq.start_temp,
-        end_temp: config.scolorq.end_temp,
-      };
-      colors::scolorq::prominent(generation.image, scolorq_config).await?
-    }
+  let extraction = match &args {
+    args::Args::Plop { extraction, .. } => extraction.clone(),
+    args::Args::Print { extraction, .. } => extraction.clone(),
   };
 
-  let mut ansi = extrapolate::ansi::from(
-    palette
-      .palette
-      .drain(0..)
-      .map(
-        |colors::Rgba {
-           red,
-           green,
-           blue,
-           alpha,
-         }| extrapolate::ansi::Rgba {
-          red,
-          green,
-          blue,
-          alpha,
-        },
-      )
-      .collect(),
-    extrapolate::ansi::Config {
-      main: extrapolate::ansi::AreaConfig {
-        saturation_factor: config.ansi.main.saturation_factor,
-        lightness_factor: config.ansi.main.lightness_factor,
-      },
-      gradient: extrapolate::ansi::AreaConfig {
-        saturation_factor: config.ansi.gradient.saturation_factor,
-        lightness_factor: config.ansi.gradient.lightness_factor,
-      },
-      grayscale: extrapolate::ansi::AreaConfig {
-        saturation_factor: config.ansi.grayscale.saturation_factor,
-        lightness_factor: config.ansi.grayscale.lightness_factor,
-      },
-    },
-  );
+  let extractor =
+    extract::new(extraction.extractor, config.clone(), extraction.image)
+      .await?;
+  let colors = extrapolate::extrapolate(config.clone(), extractor).await?;
 
   match args {
     args::Args::Plop { .. } => {
-      plop::many(
-        plop::Context {
-          ansi: plop::Ansi {
-            main: plop::AnsiMain {
-              black: ansi_to_plop(ansi.main.black),
-              red: ansi_to_plop(ansi.main.red),
-              green: ansi_to_plop(ansi.main.green),
-              blue: ansi_to_plop(ansi.main.blue),
-              cyan: ansi_to_plop(ansi.main.cyan),
-              yellow: ansi_to_plop(ansi.main.yellow),
-              magenta: ansi_to_plop(ansi.main.magenta),
-              white: ansi_to_plop(ansi.main.white),
-              bright_black: ansi_to_plop(ansi.main.bright_black),
-              bright_red: ansi_to_plop(ansi.main.bright_red),
-              bright_green: ansi_to_plop(ansi.main.bright_green),
-              bright_blue: ansi_to_plop(ansi.main.bright_blue),
-              bright_cyan: ansi_to_plop(ansi.main.bright_cyan),
-              bright_yellow: ansi_to_plop(ansi.main.bright_yellow),
-              bright_magenta: ansi_to_plop(ansi.main.bright_magenta),
-              bright_white: ansi_to_plop(ansi.main.bright_white),
-            },
-            gradient: ansi.gradient.drain(0..).map(ansi_to_plop).collect(),
-            grayscale: ansi.grayscale.drain(0..).map(ansi_to_plop).collect(),
-          },
-        },
-        plop::Config {
-          definitions: config
-            .plop_definitions
-            .clone()
-            .drain(0..)
-            .map(
-              |config::PlopDefinition {
-                 template_or_path,
-                 destination_path,
-                 to_exec,
-               }| plop::Definition {
-                template_or_path,
-                destination_path,
-                to_exec: to_exec.map(|config::PlopExec { command, args }| {
-                  plop::DefinitionExec { command, args }
-                }),
-              },
-            )
-            .collect(),
-        },
-      )
-      .await?;
+      plop::many(serde_json::json!(colors), config.plop.clone()).await?
     }
-    args::Args::Print { format, .. } => {
-      let colors = print::Colors {
-        ansi: print::Ansi {
-          main: print::AnsiMain {
-            black: ansi_to_print(ansi.main.black),
-            red: ansi_to_print(ansi.main.red),
-            green: ansi_to_print(ansi.main.green),
-            blue: ansi_to_print(ansi.main.blue),
-            cyan: ansi_to_print(ansi.main.cyan),
-            yellow: ansi_to_print(ansi.main.yellow),
-            magenta: ansi_to_print(ansi.main.magenta),
-            white: ansi_to_print(ansi.main.white),
-            bright_black: ansi_to_print(ansi.main.bright_black),
-            bright_red: ansi_to_print(ansi.main.bright_red),
-            bright_green: ansi_to_print(ansi.main.bright_green),
-            bright_blue: ansi_to_print(ansi.main.bright_blue),
-            bright_cyan: ansi_to_print(ansi.main.bright_cyan),
-            bright_yellow: ansi_to_print(ansi.main.bright_yellow),
-            bright_magenta: ansi_to_print(ansi.main.bright_magenta),
-            bright_white: ansi_to_print(ansi.main.bright_white),
-          },
-          gradient: ansi.gradient.drain(0..).map(ansi_to_print).collect(),
-          grayscale: ansi.grayscale.drain(0..).map(ansi_to_print).collect(),
-        },
-      };
-
-      match format {
-        args::Format::List => print::list::from(colors).await?,
-        args::Format::Grid => print::grid::from(colors).await?,
+    args::Args::Print { format, .. } => match format {
+      args::Format::Json => {
+        let stdout = std::io::stdout();
+        serde_json::to_writer_pretty(stdout, &colors)?;
       }
-    }
+      args::Format::List => {
+        let mut stdout = std::io::stdout();
+
+        stdout.write_all("Bootstrap:\n".as_bytes())?;
+        stdout.write_all(
+          colors.bootstrap.background.to_colored_string().as_bytes(),
+        )?;
+        stdout.write_all(
+          colors.bootstrap.foreground.to_colored_string().as_bytes(),
+        )?;
+        stdout
+          .write_all(colors.bootstrap.primary.to_colored_string().as_bytes())?;
+        stdout.write_all(
+          colors.bootstrap.secondary.to_colored_string().as_bytes(),
+        )?;
+        stdout
+          .write_all(colors.bootstrap.ternary.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.bootstrap.accent.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.bootstrap.debug.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.bootstrap.info.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.bootstrap.warning.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.bootstrap.error.to_colored_string().as_bytes())?;
+
+        stdout.write_all("Ansi:\n".as_bytes())?;
+        stdout.write_all(colors.ansi.black.to_colored_string().as_bytes())?;
+        stdout.write_all(colors.ansi.red.to_colored_string().as_bytes())?;
+        stdout.write_all(colors.ansi.green.to_colored_string().as_bytes())?;
+        stdout.write_all(colors.ansi.blue.to_colored_string().as_bytes())?;
+        stdout.write_all(colors.ansi.cyan.to_colored_string().as_bytes())?;
+        stdout.write_all(colors.ansi.yellow.to_colored_string().as_bytes())?;
+        stdout.write_all(colors.ansi.magenta.to_colored_string().as_bytes())?;
+        stdout.write_all(colors.ansi.white.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.ansi.bright_black.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.ansi.bright_red.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.ansi.bright_green.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.ansi.bright_blue.to_colored_string().as_bytes())?;
+        stdout
+          .write_all(colors.ansi.bright_cyan.to_colored_string().as_bytes())?;
+        stdout.write_all(
+          colors.ansi.bright_yellow.to_colored_string().as_bytes(),
+        )?;
+        stdout.write_all(
+          colors.ansi.bright_magenta.to_colored_string().as_bytes(),
+        )?;
+        stdout
+          .write_all(colors.ansi.bright_white.to_colored_string().as_bytes())?;
+      }
+    },
   }
 
   Ok(())
-}
-
-fn ansi_to_plop(color: extrapolate::ansi::Rgba) -> plop::Rgba {
-  let extrapolate::ansi::Rgba {
-    red,
-    green,
-    blue,
-    alpha,
-  } = color;
-
-  plop::Rgba {
-    red,
-    green,
-    blue,
-    alpha,
-  }
-}
-
-fn ansi_to_print(color: extrapolate::ansi::Rgba) -> print::Rgba {
-  let extrapolate::ansi::Rgba {
-    red,
-    green,
-    blue,
-    alpha,
-  } = color;
-
-  print::Rgba {
-    red,
-    green,
-    blue,
-    alpha,
-  }
 }

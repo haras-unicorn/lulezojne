@@ -10,7 +10,7 @@ pub enum Args {
     config: ConfigArgs,
 
     #[clap(flatten)]
-    generation: GenerationArgs,
+    extraction: ExtractionArgs,
   },
   /// Print colors from the specified image
   Print {
@@ -18,7 +18,7 @@ pub enum Args {
     config: ConfigArgs,
 
     #[clap(flatten)]
-    generation: GenerationArgs,
+    extraction: ExtractionArgs,
 
     /// The format in which to print
     #[arg(long, short, value_enum, default_value = "list")]
@@ -34,17 +34,17 @@ pub struct ConfigArgs {
 }
 
 #[derive(Debug, Clone, clap::Args)]
-pub struct GenerationArgs {
+pub struct ExtractionArgs {
   /// Image to take prominent colors from
   pub image: String,
 
-  /// Backend to use for generation of prominent colors
+  /// Extractor to use for extraction of prominent colors
   #[arg(long, short, value_enum, default_value = "neoquant")]
-  pub backend: Backend,
+  pub extractor: Extractor,
 }
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]
-pub enum Backend {
+pub enum Extractor {
   /// Fast but inaccurate - best for reaaaaly slow devices
   Colorthief,
   /// Slow but highly accurate - use if you have a fast device without a GPU
@@ -56,17 +56,17 @@ pub enum Backend {
   /// Medium speed and accuracy - improved version of median-cut
   #[default]
   Neoquant,
-  /// Slow but highly accurate  - use if you have a fast device without a GPU
+  /// Super slow but highly accurate  - use if you have a fast device without a GPU
   Scolorq,
 }
 
 #[derive(Debug, Clone, Default, clap::ValueEnum)]
 pub enum Format {
-  /// Simple color-coded list displaying all colors in CSS RGBA format
+  /// Json object of all extrapolated colors
+  Json,
+  /// Simple naive list of all extrapolated colors
   #[default]
   List,
-  /// Grid with names of colors in foreground and color-coded background
-  Grid,
 }
 
 // NOTE: try_parse triggers anyhow

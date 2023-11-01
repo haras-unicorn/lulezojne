@@ -1,81 +1,25 @@
 mod helpers;
 
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 
-// TODO: parallel file save
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Context {
-  pub ansi: Ansi,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Ansi {
-  pub main: AnsiMain,
-  pub gradient: Vec<Rgba>,
-  pub grayscale: Vec<Rgba>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnsiMain {
-  pub black: Rgba,
-  pub red: Rgba,
-  pub green: Rgba,
-  pub blue: Rgba,
-  pub cyan: Rgba,
-  pub yellow: Rgba,
-  pub magenta: Rgba,
-  pub white: Rgba,
-  pub bright_black: Rgba,
-  pub bright_red: Rgba,
-  pub bright_green: Rgba,
-  pub bright_blue: Rgba,
-  pub bright_cyan: Rgba,
-  pub bright_yellow: Rgba,
-  pub bright_magenta: Rgba,
-  pub bright_white: Rgba,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Rgba {
-  pub red: u8,
-  pub green: u8,
-  pub blue: u8,
-  pub alpha: f32,
-}
-
-#[derive(Debug, Clone)]
-pub struct Config {
-  pub definitions: Vec<Definition>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Definition {
-  pub template_or_path: String,
-  pub destination_path: String,
-  pub to_exec: Option<DefinitionExec>,
-}
-
-#[derive(Debug, Clone)]
-pub struct DefinitionExec {
-  pub command: String,
-  pub args: Option<Vec<String>>,
-}
+use crate::*;
 
 #[tracing::instrument(skip_all)]
-pub async fn many(context: Context, config: Config) -> anyhow::Result<()> {
+pub async fn many(
+  context: serde_json::Value,
+  config: Vec<config::Plop>,
+) -> anyhow::Result<()> {
   let definitions = {
     let mut definitions = Vec::new();
-    for definition in config.definitions {
-      definitions.push(Definition {
-        template_or_path: if is_path(definition.template_or_path.as_str()) {
-          expand(definition.template_or_path.clone())?
+    for definition in config {
+      definitions.push(config::Plop {
+        template: if is_path(definition.template.as_str()) {
+          expand(definition.template.clone())?
         } else {
-          definition.template_or_path
+          definition.template
         },
-        destination_path: expand(definition.destination_path.clone())?,
-        to_exec: definition.to_exec,
+        destination: expand(definition.destination.clone())?,
+        then: definition.then,
       })
     }
     definitions
@@ -83,7 +27,7 @@ pub async fn many(context: Context, config: Config) -> anyhow::Result<()> {
 
   let compilation_tasks = definitions
     .iter()
-    .map(|definition| definition.template_or_path.clone())
+    .map(|definition| definition.template.clone())
     .unique()
     .map(|path| {
       tokio::spawn(async move { (path.clone(), compile(path).await) })
@@ -100,6 +44,7 @@ pub async fn many(context: Context, config: Config) -> anyhow::Result<()> {
     plop(&registry, &context, definition).await?;
   }
 
+  // TODO: parallel file save
   // let plop_tasks = definitions.iter().map(|definition| {
   //   tokio::spawn({
   //     let definition = definition.clone();
@@ -129,26 +74,25 @@ async fn compile(
 async fn plop<'a>(
   registry: &handlebars::Handlebars<'a>,
   context: &handlebars::Context,
-  definition: Definition,
+  definition: config::Plop,
 ) -> anyhow::Result<()> {
   tracing::debug! {
     "Rendering {} to {}",
-    definition.template_or_path,
-    definition.destination_path
+    definition.template,
+    definition.destination
   };
 
-  let rendered =
-    registry.render_with_context(&definition.template_or_path, context)?;
-  let dirname = std::path::Path::new(&definition.destination_path).parent();
+  let rendered = registry.render_with_context(&definition.template, context)?;
+  let dirname = std::path::Path::new(&definition.destination).parent();
   if let Some(dirname) = dirname {
     if !tokio::fs::try_exists(dirname).await? {
       tokio::fs::create_dir_all(dirname).await?;
     }
   }
-  tokio::fs::write(definition.destination_path.as_str(), rendered.into_bytes())
+  tokio::fs::write(definition.destination.as_str(), rendered.into_bytes())
     .await?;
 
-  if let Some(to_exec) = definition.to_exec {
+  if let Some(to_exec) = definition.then {
     let mut command = tokio::process::Command::new(to_exec.command);
     if let Some(args) = to_exec.args {
       command.args(args);

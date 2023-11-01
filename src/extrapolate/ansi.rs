@@ -1,29 +1,23 @@
-use colored::Colorize;
+use std::sync::Arc;
+
 use lazy_static::lazy_static;
-use palette::IntoColor;
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 
-#[derive(Debug, Clone, Copy)]
-pub struct Config {
-  pub main: AreaConfig,
-  pub gradient: AreaConfig,
-  pub grayscale: AreaConfig,
+use crate::{
+  color::{Component, FloatingComponent, Rgba},
+  *,
+};
+
+#[derive(Clone)]
+pub struct Extrapolator {
+  #[allow(unused)]
+  config: config::AnsiConfig,
+  extractor: Arc<Mutex<Box<dyn extract::Extractor + Send + Sync>>>,
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct AreaConfig {
-  pub saturation_factor: f32,
-  pub lightness_factor: f32,
-}
-
-#[derive(Debug, Clone)]
-pub struct Result {
-  pub main: ResultMain,
-  pub gradient: Vec<Rgba>,
-  pub grayscale: Vec<Rgba>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ResultMain {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Palette {
   pub black: Rgba,
   pub red: Rgba,
   pub green: Rgba,
@@ -40,236 +34,179 @@ pub struct ResultMain {
   pub bright_yellow: Rgba,
   pub bright_magenta: Rgba,
   pub bright_white: Rgba,
+  pub gradient: Vec<Rgba>,
+  pub grayscale: Vec<Rgba>,
 }
 
-#[derive(Debug, Clone)]
-pub struct Rgba {
-  pub red: u8,
-  pub green: u8,
-  pub blue: u8,
-  pub alpha: f32,
+impl Extrapolator {
+  pub fn new(
+    config: config::AnsiConfig,
+    extractor: Arc<Mutex<Box<dyn extract::Extractor + Send + Sync>>>,
+  ) -> Self {
+    Self { config, extractor }
+  }
 }
 
-type Color = palette::Oklaba<f32>;
-type Hsla = palette::Okhsla<f32>;
-type ContinuonsRgb = palette::Srgb<f32>;
-type ContinuousRgba = palette::Alpha<ContinuonsRgb, f32>;
-type DiscreteRgb = palette::LinSrgb<u8>;
-type DiscreteRgba = palette::Alpha<DiscreteRgb, f32>;
+#[async_trait::async_trait]
+impl<'a> super::Extrapolator<'a, Palette> for Extrapolator {
+  #[tracing::instrument(skip(self))]
+  async fn extrapolate(&self) -> anyhow::Result<Palette> {
+    let extracted256 = {
+      let extractor = self.extractor.clone().lock_owned().await;
+      extractor.prominent(255).await?
+    };
+
+    let colors = Palette {
+      black: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi black"))?,
+      red: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi red"))?,
+      green: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi green"))?,
+      blue: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi blue"))?,
+      cyan: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi cyan"))?,
+      yellow: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi yellow"))?,
+      magenta: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi magenta"))?,
+      white: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi white"))?,
+      bright_black: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_black"))?,
+      bright_red: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| {
+        anyhow::anyhow!("Failed to find ansi bright_red")
+      })?,
+      bright_green: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_green"))?,
+      bright_blue: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_blue"))?,
+      bright_cyan: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_cyan"))?,
+      bright_yellow: color::closest_by_hue(
+        extracted256.iter().cloned(),
+        *BLACK,
+      )
+      .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_yellow"))?,
+      bright_magenta: color::closest_by_hue(
+        extracted256.iter().cloned(),
+        *BLACK,
+      )
+      .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_magenta"))?,
+      bright_white: color::closest_by_hue(extracted256.iter().cloned(), *BLACK)
+        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_white"))?,
+      gradient: Vec::new(),
+      grayscale: Vec::new(),
+    }
+    .correct_contrast(
+      |x, y| color::correct_text_foreground_contrast(x, y).to_rgba(),
+      |x, y| color::correct_element_foreground_contrast(x, y).to_rgba(),
+    );
+
+    super::trace_colors!(colors);
+
+    Ok(colors)
+  }
+}
+
+impl Palette {
+  fn correct_contrast<
+    TCorrectText: FnMut(Rgba, Rgba) -> Rgba,
+    TCorrectElement: FnMut(Rgba, Rgba) -> Rgba,
+  >(
+    self,
+    mut correct_text: TCorrectText,
+    mut correct_element: TCorrectElement,
+  ) -> Self {
+    Self {
+      black: self.black,
+      red: correct_element(self.black, self.red),
+      green: correct_element(self.black, self.green),
+      blue: correct_element(self.black, self.blue),
+      cyan: correct_element(self.black, self.cyan),
+      yellow: correct_element(self.black, self.yellow),
+      magenta: correct_element(self.black, self.magenta),
+      white: correct_text(self.black, self.white),
+      bright_black: correct_element(self.black, self.bright_black),
+      bright_red: correct_element(self.black, self.bright_red),
+      bright_green: correct_element(self.black, self.bright_green),
+      bright_blue: correct_element(self.black, self.bright_blue),
+      bright_cyan: correct_element(self.black, self.bright_cyan),
+      bright_yellow: correct_element(self.black, self.bright_yellow),
+      bright_magenta: correct_element(self.black, self.bright_magenta),
+      bright_white: correct_text(self.black, self.bright_white),
+      gradient: self
+        .gradient
+        .into_iter()
+        .map(|gradient| correct_element(self.black, gradient))
+        .collect::<Vec<_>>(),
+      grayscale: self
+        .grayscale
+        .into_iter()
+        .map(|gradient| correct_element(self.black, gradient))
+        .collect::<Vec<_>>(),
+    }
+  }
+}
 
 lazy_static! {
-  static ref EMPTY: u8 = 0;
-  static ref FULL: u8 = 255;
-  static ref PART32: u8 = (Into::<f32>::into(*FULL) / 32.0f32).floor() as u8;
-  static ref SIXTH: u8 = (Into::<f32>::into(*FULL) / 6.0f32).floor() as u8;
-  static ref THIRD: u8 = (Into::<f32>::into(*FULL) / 3.0f32).floor() as u8;
-  static ref HALF: u8 = (Into::<f32>::into(*FULL) / 2.0f32).floor() as u8;
+  static ref EMPTY: FloatingComponent =
+    FloatingComponent::min_component_value();
+  static ref FULL: FloatingComponent = FloatingComponent::max_component_value();
+  static ref PART32: FloatingComponent =
+    *FULL / FloatingComponent::from_f32(32f32);
+  static ref SIXTH: FloatingComponent =
+    *FULL / FloatingComponent::from_f32(6f32);
+  static ref THIRD: FloatingComponent =
+    *FULL / FloatingComponent::from_f32(3f32);
+  static ref HALF: FloatingComponent =
+    *FULL / FloatingComponent::from_f32(2f32);
 }
 
 lazy_static! {
-  static ref BLACK: Color = opaque(*EMPTY, *EMPTY, *EMPTY);
-  static ref RED: Color = opaque(*HALF, *EMPTY, *EMPTY);
-  static ref GREEN: Color = opaque(*EMPTY, *HALF, *EMPTY);
-  static ref BLUE: Color = opaque(*EMPTY, *EMPTY, *HALF);
-  static ref CYAN: Color = opaque(*EMPTY, *HALF, *HALF);
-  static ref YELLOW: Color = opaque(*HALF, *HALF, *EMPTY);
-  static ref MAGENTA: Color = opaque(*HALF, *EMPTY, *HALF);
-  static ref BRIGHT_GREY: Color = opaque(2 * *THIRD, 2 * *THIRD, 2 * *THIRD);
-  static ref GREY: Color = opaque(*THIRD, *THIRD, *THIRD);
-  static ref BRIGHT_RED: Color = opaque(*FULL, *EMPTY, *EMPTY);
-  static ref BRIGHT_GREEN: Color = opaque(*EMPTY, *FULL, *EMPTY);
-  static ref BRIGHT_BLUE: Color = opaque(*EMPTY, *EMPTY, *FULL);
-  static ref BRIGHT_CYAN: Color = opaque(*EMPTY, *FULL, *FULL);
-  static ref BRIGHT_YELLOW: Color = opaque(*FULL, *FULL, *EMPTY);
-  static ref BRIGHT_MAGENTA: Color = opaque(*FULL, *EMPTY, *FULL);
-  static ref WHITE: Color = opaque(*FULL, *FULL, *FULL);
+  static ref BLACK: Rgba = Rgba::opaque(*EMPTY, *EMPTY, *EMPTY);
+  static ref RED: Rgba = Rgba::opaque(*HALF, *EMPTY, *EMPTY);
+  static ref GREEN: Rgba = Rgba::opaque(*EMPTY, *HALF, *EMPTY);
+  static ref BLUE: Rgba = Rgba::opaque(*EMPTY, *EMPTY, *HALF);
+  static ref CYAN: Rgba = Rgba::opaque(*EMPTY, *HALF, *HALF);
+  static ref YELLOW: Rgba = Rgba::opaque(*HALF, *HALF, *EMPTY);
+  static ref MAGENTA: Rgba = Rgba::opaque(*HALF, *EMPTY, *HALF);
+  static ref BRIGHT_GREY: Rgba = Rgba::opaque(
+    FloatingComponent::from_f32(2f32) * *THIRD,
+    FloatingComponent::from_f32(2f32) * *THIRD,
+    FloatingComponent::from_f32(2f32) * *THIRD
+  );
+  static ref GREY: Rgba = Rgba::opaque(*THIRD, *THIRD, *THIRD);
+  static ref BRIGHT_RED: Rgba = Rgba::opaque(*FULL, *EMPTY, *EMPTY);
+  static ref BRIGHT_GREEN: Rgba = Rgba::opaque(*EMPTY, *FULL, *EMPTY);
+  static ref BRIGHT_BLUE: Rgba = Rgba::opaque(*EMPTY, *EMPTY, *FULL);
+  static ref BRIGHT_CYAN: Rgba = Rgba::opaque(*EMPTY, *FULL, *FULL);
+  static ref BRIGHT_YELLOW: Rgba = Rgba::opaque(*FULL, *FULL, *EMPTY);
+  static ref BRIGHT_MAGENTA: Rgba = Rgba::opaque(*FULL, *EMPTY, *FULL);
+  static ref WHITE: Rgba = Rgba::opaque(*FULL, *FULL, *FULL);
 }
 
 lazy_static! {
-  static ref GRADIENT: Vec<Color> = (0..6)
-    .flat_map(move |r| (0..6).map(move |g| (0..6).map(move |b| opaque(
-      r * *SIXTH,
-      g * *SIXTH,
-      b * *SIXTH
-    ))))
+  static ref GRADIENT: Vec<Rgba> = (0..6)
+    .flat_map(
+      move |r| (0..6).map(move |g| (0..6).map(move |b| Rgba::opaque(
+        r as FloatingComponent * *SIXTH,
+        g as FloatingComponent * *SIXTH,
+        b as FloatingComponent * *SIXTH
+      )))
+    )
     .flatten()
     .collect();
 }
 
 lazy_static! {
-  static ref GRAYSCALE: Vec<Color> = (0..32)
-    .map(|i| opaque(i * *PART32, i * *PART32, i * *PART32))
+  static ref GRAYSCALE: Vec<Rgba> = (0..32)
+    .map(|i| Rgba::opaque(
+      i as FloatingComponent * *PART32,
+      i as FloatingComponent * *PART32,
+      i as FloatingComponent * *PART32
+    ))
     .collect();
-}
-
-pub fn from(palette: Vec<Rgba>, config: Config) -> Result {
-  let palette = from_rgba(&palette);
-
-  Result {
-    main: ResultMain {
-      black: mix_closest_to(&palette, *BLACK, config.main),
-      red: mix_closest_to(&palette, *RED, config.main),
-      green: mix_closest_to(&palette, *GREEN, config.main),
-      blue: mix_closest_to(&palette, *BLUE, config.main),
-      cyan: mix_closest_to(&palette, *CYAN, config.main),
-      yellow: mix_closest_to(&palette, *YELLOW, config.main),
-      magenta: mix_closest_to(&palette, *MAGENTA, config.main),
-      white: mix_closest_to(&palette, *GREY, config.main),
-      bright_black: mix_closest_to(&palette, *BRIGHT_GREY, config.main),
-      bright_red: mix_closest_to(&palette, *BRIGHT_RED, config.main),
-      bright_green: mix_closest_to(&palette, *BRIGHT_GREEN, config.main),
-      bright_blue: mix_closest_to(&palette, *BRIGHT_BLUE, config.main),
-      bright_cyan: mix_closest_to(&palette, *BRIGHT_CYAN, config.main),
-      bright_yellow: mix_closest_to(&palette, *BRIGHT_YELLOW, config.main),
-      bright_magenta: mix_closest_to(&palette, *BRIGHT_MAGENTA, config.main),
-      bright_white: mix_closest_to(&palette, *WHITE, config.main),
-    },
-    gradient: (*GRADIENT)
-      .iter()
-      .map(|color| mix_closest_to(&palette, *color, config.gradient))
-      .collect(),
-    grayscale: (*GRAYSCALE)
-      .iter()
-      .map(|color| mix_closest_to(&palette, *color, config.grayscale))
-      .collect(),
-  }
-}
-
-fn from_rgba(palette: &[Rgba]) -> Vec<Color> {
-  palette
-    .iter()
-    .map(
-      |Rgba {
-         red,
-         green,
-         blue,
-         alpha,
-       }| {
-        DiscreteRgba::new(*red, *green, *blue, *alpha)
-          .into_format::<f32, f32>()
-          .into_color()
-      },
-    )
-    .collect()
-}
-
-fn to_rgba(color: Color) -> Rgba {
-  let DiscreteRgba {
-    color: DiscreteRgb {
-      red, green, blue, ..
-    },
-    alpha,
-  } = IntoColor::<ContinuousRgba>::into_color(*color)
-    .into_linear::<f32, f32>()
-    .into_format::<u8, f32>();
-  Rgba {
-    red,
-    green,
-    blue,
-    alpha,
-  }
-}
-
-fn mix_closest_to(palette: &[Color], color: Color, config: AreaConfig) -> Rgba {
-  let closest = closest_to(palette, color).unwrap_or_default();
-  let mixed = mix(closest, color, config);
-  let result = to_rgba(mixed);
-
-  #[cfg(debug_assertions)]
-  {
-    print(color, closest, mixed, config);
-  }
-
-  result
-}
-
-fn closest_to(palette: &[Color], reference: Color) -> Option<Color> {
-  palette
-    .iter()
-    .min_by(|x, y| {
-      let dist_x = palette::color_difference::HyAb::hybrid_distance(
-        x.color,
-        reference.color,
-      );
-      let dist_y = palette::color_difference::HyAb::hybrid_distance(
-        y.color,
-        reference.color,
-      );
-      dist_x.total_cmp(&dist_y)
-    })
-    .cloned()
-}
-
-fn mix(lhs: Color, rhs: Color, config: AreaConfig) -> Color {
-  let lhs_hsla = palette::IntoColor::<Hsla>::into_color(lhs);
-  let rhs_hsla = palette::IntoColor::<Hsla>::into_color(rhs);
-  let saturation = lhs_hsla.saturation
-    + (rhs_hsla.saturation - lhs_hsla.saturation) * config.saturation_factor;
-  let lightness = lhs_hsla.lightness
-    + (rhs_hsla.lightness - lhs_hsla.lightness) * config.lightness_factor;
-
-  Hsla::new(lhs_hsla.color.hue, saturation, lightness, rhs.alpha).into_color()
-}
-
-fn opaque(r: u8, g: u8, b: u8) -> Color {
-  ContinuousRgba::from_linear(
-    DiscreteRgba::new(r, g, b, 1.0).into_format::<f32, f32>(),
-  )
-  .into_color()
-}
-
-fn print(reference: Color, closest: Color, result: Color, config: AreaConfig) {
-  let Rgba {
-    red: reference_red,
-    green: reference_green,
-    blue: reference_blue,
-    alpha: reference_alpha,
-  } = to_rgba(reference);
-  let Rgba {
-    red: closest_red,
-    green: closest_green,
-    blue: closest_blue,
-    alpha: closest_alpha,
-  } = to_rgba(closest);
-  let Rgba {
-    red: result_red,
-    green: result_green,
-    blue: result_blue,
-    alpha: result_alpha,
-  } = to_rgba(result);
-
-  let reference = format!("rgba({reference_red}, {reference_green}, {reference_blue}, {reference_alpha})") 
-     .custom_color(colored::CustomColor {
-    r: reference_red,
-    g: reference_green,
-    b: reference_blue,
-  }).to_string();
-
-  let closest = format!(
-    "rgba({closest_red}, {closest_green}, {closest_blue}, {closest_alpha})"
-  )
-  .custom_color(colored::CustomColor {
-    r: closest_red,
-    g: closest_green,
-    b: closest_blue,
-  })
-  .to_string();
-
-  let result = format!(
-    "rgba({result_red}, {result_green}, {result_blue}, {result_alpha})"
-  )
-  .custom_color(colored::CustomColor {
-    r: result_red,
-    g: result_green,
-    b: result_blue,
-  })
-  .to_string();
-
-  let lightness_factor = config.lightness_factor;
-  let saturation_factor = config.saturation_factor;
-
-  let _ = std::io::Write::write_all(
-    &mut std::io::stdout(),
-    format!("{reference} -> ({closest}, {lightness_factor}, {saturation_factor}) -> {result}\n").as_bytes(),
-  );
 }
