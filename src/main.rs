@@ -72,61 +72,46 @@ async fn main() -> anyhow::Result<()> {
       args::Format::List => {
         let mut stdout = std::io::stdout();
 
-        stdout.write_all("Bootstrap:\n".as_bytes())?;
-        stdout.write_all(
-          colors.bootstrap.background.to_colored_string().as_bytes(),
-        )?;
-        stdout.write_all(
-          colors.bootstrap.foreground.to_colored_string().as_bytes(),
-        )?;
-        stdout
-          .write_all(colors.bootstrap.primary.to_colored_string().as_bytes())?;
-        stdout.write_all(
-          colors.bootstrap.secondary.to_colored_string().as_bytes(),
-        )?;
-        stdout
-          .write_all(colors.bootstrap.ternary.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.bootstrap.accent.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.bootstrap.debug.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.bootstrap.info.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.bootstrap.warning.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.bootstrap.error.to_colored_string().as_bytes())?;
+        stdout.write_all("\nBootstrap:\n".as_bytes())?;
+        write_color(&mut stdout, colors.bootstrap.background)?;
+        write_color(&mut stdout, colors.bootstrap.foreground)?;
+        write_color(&mut stdout, colors.bootstrap.primary)?;
+        write_color(&mut stdout, colors.bootstrap.secondary)?;
+        write_color(&mut stdout, colors.bootstrap.ternary)?;
+        write_color(&mut stdout, colors.bootstrap.accent)?;
+        write_color(&mut stdout, colors.bootstrap.debug)?;
+        write_color(&mut stdout, colors.bootstrap.info)?;
+        write_color(&mut stdout, colors.bootstrap.warning)?;
+        write_color(&mut stdout, colors.bootstrap.error)?;
 
-        stdout.write_all("Ansi:\n".as_bytes())?;
-        stdout.write_all(colors.ansi.black.to_colored_string().as_bytes())?;
-        stdout.write_all(colors.ansi.red.to_colored_string().as_bytes())?;
-        stdout.write_all(colors.ansi.green.to_colored_string().as_bytes())?;
-        stdout.write_all(colors.ansi.blue.to_colored_string().as_bytes())?;
-        stdout.write_all(colors.ansi.cyan.to_colored_string().as_bytes())?;
-        stdout.write_all(colors.ansi.yellow.to_colored_string().as_bytes())?;
-        stdout.write_all(colors.ansi.magenta.to_colored_string().as_bytes())?;
-        stdout.write_all(colors.ansi.white.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.ansi.bright_black.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.ansi.bright_red.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.ansi.bright_green.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.ansi.bright_blue.to_colored_string().as_bytes())?;
-        stdout
-          .write_all(colors.ansi.bright_cyan.to_colored_string().as_bytes())?;
-        stdout.write_all(
-          colors.ansi.bright_yellow.to_colored_string().as_bytes(),
-        )?;
-        stdout.write_all(
-          colors.ansi.bright_magenta.to_colored_string().as_bytes(),
-        )?;
-        stdout
-          .write_all(colors.ansi.bright_white.to_colored_string().as_bytes())?;
+        stdout.write_all("\nAnsi:\n".as_bytes())?;
+        write_color(&mut stdout, colors.ansi.black)?;
+        write_color(&mut stdout, colors.ansi.red)?;
+        write_color(&mut stdout, colors.ansi.green)?;
+        write_color(&mut stdout, colors.ansi.blue)?;
+        write_color(&mut stdout, colors.ansi.cyan)?;
+        write_color(&mut stdout, colors.ansi.yellow)?;
+        write_color(&mut stdout, colors.ansi.magenta)?;
+        write_color(&mut stdout, colors.ansi.white)?;
+        write_color(&mut stdout, colors.ansi.bright_black)?;
+        write_color(&mut stdout, colors.ansi.bright_red)?;
+        write_color(&mut stdout, colors.ansi.bright_green)?;
+        write_color(&mut stdout, colors.ansi.bright_blue)?;
+        write_color(&mut stdout, colors.ansi.bright_cyan)?;
+        write_color(&mut stdout, colors.ansi.bright_yellow)?;
+        write_color(&mut stdout, colors.ansi.bright_magenta)?;
+        write_color(&mut stdout, colors.ansi.bright_white)?;
       }
     },
   }
 
   Ok(())
+}
+
+fn write_color(
+  write: &mut impl Write,
+  color: impl Color,
+) -> Result<(), std::io::Error> {
+  let color_string = color.to_colored_string();
+  write.write_all(format!("{color_string}\n").as_bytes())
 }

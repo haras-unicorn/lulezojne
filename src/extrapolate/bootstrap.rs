@@ -65,13 +65,13 @@ impl<'a> super::Extrapolator<'a, Palette> for Extrapolator {
     let ternary = extracted4[2];
     let accent = extracted4[3];
 
-    let debug = color::closest_by_hue(*CYAN, extracted16.iter().cloned())
+    let debug = color::closest(*CYAN, extracted16.iter().cloned())
       .ok_or(anyhow::anyhow!("Couldn't find debug color"))?;
-    let info = color::closest_by_hue(*GREEN, extracted16.iter().cloned())
+    let info = color::closest(*GREEN, extracted16.iter().cloned())
       .ok_or(anyhow::anyhow!("Couldn't find info color"))?;
-    let warning = color::closest_by_hue(*YELLOW, extracted16.iter().cloned())
+    let warning = color::closest(*YELLOW, extracted16.iter().cloned())
       .ok_or(anyhow::anyhow!("Couldn't find warning color"))?;
-    let error = color::closest_by_hue(*RED, extracted16.iter().cloned())
+    let error = color::closest(*RED, extracted16.iter().cloned())
       .ok_or(anyhow::anyhow!("Couldn't find error color"))?;
 
     let colors = Palette {
@@ -87,8 +87,8 @@ impl<'a> super::Extrapolator<'a, Palette> for Extrapolator {
       error,
     }
     .correct_contrast(
-      |x, y| color::correct_text_foreground_contrast(x, y).to_rgba(),
-      |x, y| color::correct_element_foreground_contrast(x, y).to_rgba(),
+      |x, y| color::correct_text_contrast(x, y).to_rgba(),
+      |x, y| color::correct_graphics_contrast(x, y).to_rgba(),
     );
 
     super::trace_colors!(colors);
@@ -104,15 +104,15 @@ impl Palette {
   >(
     self,
     mut correct_text: TCorrectText,
-    mut correct_element: TCorrectElement,
+    mut correct_graphics: TCorrectElement,
   ) -> Self {
     Self {
       background: self.background,
       foreground: correct_text(self.background, self.foreground),
-      primary: correct_element(self.background, self.primary),
-      secondary: correct_element(self.background, self.secondary),
-      ternary: correct_element(self.background, self.ternary),
-      accent: correct_element(self.background, self.accent),
+      primary: correct_graphics(self.background, self.primary),
+      secondary: correct_graphics(self.background, self.secondary),
+      ternary: correct_graphics(self.background, self.ternary),
+      accent: correct_graphics(self.background, self.accent),
       debug: correct_text(self.background, self.debug),
       info: correct_text(self.background, self.info),
       warning: correct_text(self.background, self.warning),

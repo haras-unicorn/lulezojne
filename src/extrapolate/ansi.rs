@@ -117,8 +117,8 @@ impl<'a> super::Extrapolator<'a, Palette> for Extrapolator {
       grayscale: Vec::new(),
     }
     .correct_contrast(
-      |x, y| color::correct_text_foreground_contrast(x, y).to_rgba(),
-      |x, y| color::correct_element_foreground_contrast(x, y).to_rgba(),
+      |x, y| color::correct_text_contrast(x, y).to_rgba(),
+      |x, y| color::correct_graphics_contrast(x, y).to_rgba(),
     );
 
     super::trace_colors!(colors);
@@ -134,34 +134,34 @@ impl Palette {
   >(
     self,
     mut correct_text: TCorrectText,
-    mut correct_element: TCorrectElement,
+    mut correct_graphics: TCorrectElement,
   ) -> Self {
     Self {
       black: self.black,
-      red: correct_element(self.black, self.red),
-      green: correct_element(self.black, self.green),
-      blue: correct_element(self.black, self.blue),
-      cyan: correct_element(self.black, self.cyan),
-      yellow: correct_element(self.black, self.yellow),
-      magenta: correct_element(self.black, self.magenta),
+      red: correct_graphics(self.black, self.red),
+      green: correct_graphics(self.black, self.green),
+      blue: correct_graphics(self.black, self.blue),
+      cyan: correct_graphics(self.black, self.cyan),
+      yellow: correct_graphics(self.black, self.yellow),
+      magenta: correct_graphics(self.black, self.magenta),
       white: correct_text(self.black, self.white),
-      bright_black: correct_element(self.black, self.bright_black),
-      bright_red: correct_element(self.black, self.bright_red),
-      bright_green: correct_element(self.black, self.bright_green),
-      bright_blue: correct_element(self.black, self.bright_blue),
-      bright_cyan: correct_element(self.black, self.bright_cyan),
-      bright_yellow: correct_element(self.black, self.bright_yellow),
-      bright_magenta: correct_element(self.black, self.bright_magenta),
+      bright_black: correct_graphics(self.black, self.bright_black),
+      bright_red: correct_graphics(self.black, self.bright_red),
+      bright_green: correct_graphics(self.black, self.bright_green),
+      bright_blue: correct_graphics(self.black, self.bright_blue),
+      bright_cyan: correct_graphics(self.black, self.bright_cyan),
+      bright_yellow: correct_graphics(self.black, self.bright_yellow),
+      bright_magenta: correct_graphics(self.black, self.bright_magenta),
       bright_white: correct_text(self.black, self.bright_white),
       gradient: self
         .gradient
         .into_iter()
-        .map(|gradient| correct_element(self.black, gradient))
+        .map(|gradient| correct_graphics(self.black, gradient))
         .collect::<Vec<_>>(),
       grayscale: self
         .grayscale
         .into_iter()
-        .map(|gradient| correct_element(self.black, gradient))
+        .map(|gradient| correct_graphics(self.black, gradient))
         .collect::<Vec<_>>(),
     }
   }

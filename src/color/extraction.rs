@@ -111,12 +111,6 @@ impl_filter_range!(lightness, filter_lightness_range);
 impl_closest_by!(lightness, closest_by_lightness);
 impl_min_max!(lightness, darkest, brightest);
 
-impl_filter_max_difference!(luminance, filter_luminance_max_difference);
-impl_filter_min_difference!(luminance, filter_luminance_min_difference);
-impl_filter_range!(luminance, filter_luminance_range);
-impl_closest_by!(luminance, closest_by_luminance);
-impl_min_max!(luminance, least_luminant, most_luminant);
-
 impl_filter_max_difference!(saturation, filter_saturation_max_difference);
 impl_filter_min_difference!(saturation, filter_saturation_min_difference);
 impl_filter_range!(saturation, filter_saturation_range);

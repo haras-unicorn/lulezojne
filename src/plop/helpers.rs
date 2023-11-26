@@ -98,10 +98,6 @@ handlebars_helper!(SetLightnessHelper: |color: Rgba, lightness: FloatingComponen
   json!(color.with_lightness(lightness))
 });
 
-handlebars_helper!(SetLuminanceHelper: |color: Rgba, luminance: FloatingComponent| {
-  json!(color.with_luminance(luminance))
-});
-
 handlebars_helper!(SetSaturationHelper: |color: Rgba, saturation: FloatingComponent| {
   json!(color.with_saturation(saturation))
 });

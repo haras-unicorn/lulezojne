@@ -1,53 +1,51 @@
 use super::{Color, Component, FloatingComponent};
+use palette::color_difference::Wcag21RelativeContrast;
 
 // TODO: use https://git.apcacontrast.com/
 
 macro_rules! impl_correct_contrast {
-  ($name: ident, $ratio: expr) => {
+  ($name: ident, $check: ident) => {
     #[allow(dead_code)]
     pub fn $name<TBackground: Color, TForeground: Color>(
       background: TBackground,
-      foreground: TForeground,
+      mut foreground: TForeground,
     ) -> impl Color {
-      if background.lightness::<FloatingComponent>()
-        < foreground.lightness::<FloatingComponent>()
+      let factor = FloatingComponent::from_f32(
+        if background.lightness::<FloatingComponent>()
+          < foreground.lightness::<FloatingComponent>()
+        {
+          0.05f32
+        } else {
+          -0.05f32
+        },
+      );
+
+      while foreground.lightness::<FloatingComponent>()
+        != FloatingComponent::max_component_value()
+        && !foreground
+          .luminance()
+          .color
+          .$check(background.luminance().color)
       {
-        let min_lightness =
-          background.lightness::<FloatingComponent>() * $ratio;
-        foreground.with_lightness(
-          foreground
-            .lightness::<FloatingComponent>()
-            .clamp(min_lightness, FloatingComponent::max_component_value()),
-        )
-      } else {
-        let max_lightness =
-          background.lightness::<FloatingComponent>() / $ratio;
-        foreground.with_lightness(
-          foreground
-            .lightness::<FloatingComponent>()
-            .clamp(FloatingComponent::min_component_value(), max_lightness),
-        )
+        foreground = foreground.add_lightness(factor);
       }
+
+      foreground
     }
   };
 }
 
-// NOTE: https://www.w3.org/WAI/WCAG22/quickref/?versions=2.1&showtechniques=143%2C146#contrast-minimum
+impl_correct_contrast!(correct_text_contrast, has_min_contrast_text);
 impl_correct_contrast!(
-  correct_text_foreground_contrast,
-  FloatingComponent::from_f32(4.5f32)
+  correct_large_text_contrast,
+  has_min_contrast_large_text
 );
 impl_correct_contrast!(
-  correct_element_foreground_contrast,
-  FloatingComponent::from_f32(3f32)
-);
-
-// NOTE: https://www.w3.org/WAI/WCAG22/quickref/?versions=2.1&showtechniques=143%2C146#contrast-enhanced
-impl_correct_contrast!(
-  correct_high_contrast_text_foreground_contrast,
-  FloatingComponent::from_f32(7f32)
+  correct_text_enhanced_contrast,
+  has_enhanced_contrast_text
 );
 impl_correct_contrast!(
-  correct_high_contrast_element_foreground_contrast,
-  FloatingComponent::from_f32(4.5f32)
+  correct_large_text_enhanced_contrast,
+  has_enhanced_contrast_large_text
 );
+impl_correct_contrast!(correct_graphics_contrast, has_min_contrast_graphics);

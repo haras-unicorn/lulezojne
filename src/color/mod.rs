@@ -21,9 +21,10 @@ pub struct Rgba {
 
 type Lab = palette::Oklaba<FloatingComponent>;
 type Hsla = palette::Okhsla<FloatingComponent>;
-type Lumma = palette::SrgbLumaa<FloatingComponent>;
 type Srgba = palette::Srgba<FloatingComponent>;
 type ColorImpl = Rgba;
+
+type Lumma = palette::LinLumaa<palette::white_point::D65, FloatingComponent>;
 
 impl Rgba {
   #[allow(dead_code)]
@@ -61,16 +62,15 @@ pub trait Color: Clone + Copy {
   fn green<TComponent: Component>(self) -> TComponent;
   fn blue<TComponent: Component>(self) -> TComponent;
 
+  fn luminance(self) -> Lumma;
+
   fn lightness<TComponent: Component>(self) -> TComponent;
-  fn luminance<TComponent: Component>(self) -> TComponent;
   fn saturation<TComponent: Component>(self) -> TComponent;
   fn hue<TComponent: Component>(self) -> TComponent;
 
   fn alpha<TComponent: Component>(self) -> TComponent;
 
   fn with_lightness<TComponent: Component>(self, lightness: TComponent)
-    -> Self;
-  fn with_luminance<TComponent: Component>(self, luminance: TComponent)
     -> Self;
   fn with_saturation<TComponent: Component>(
     self,
@@ -79,9 +79,12 @@ pub trait Color: Clone + Copy {
   fn with_alpha<TComponent: Component>(self, alpha: TComponent) -> Self;
 
   fn multiply_lightness<TFactor: Factor>(self, factor: TFactor) -> Self;
-  fn multiply_luminance<TFactor: Factor>(self, factor: TFactor) -> Self;
   fn multiply_saturation<TFactor: Factor>(self, factor: TFactor) -> Self;
   fn multiply_alpha<TFactor: Factor>(self, factor: TFactor) -> Self;
+
+  fn add_lightness<TFactor: Factor>(self, factor: TFactor) -> Self;
+  fn add_saturation<TFactor: Factor>(self, factor: TFactor) -> Self;
+  fn add_alpha<TFactor: Factor>(self, factor: TFactor) -> Self;
 
   fn distance<TComponent: Component>(self, other: Self) -> TComponent;
 
@@ -102,6 +105,10 @@ impl Color for ColorImpl {
     TComponent::from_floating_component(self.to_rgba().blue)
   }
 
+  fn luminance(self) -> Lumma {
+    self.to_lumma()
+  }
+
   fn lightness<TComponent: Component>(self) -> TComponent {
     TComponent::from_floating_component(self.to_hsla().lightness)
   }
@@ -117,10 +124,6 @@ impl Color for ColorImpl {
     )
   }
 
-  fn luminance<TComponent: Component>(self) -> TComponent {
-    TComponent::from_floating_component(self.to_lumma().luma)
-  }
-
   fn alpha<TComponent: Component>(self) -> TComponent {
     TComponent::from_floating_component(self.to_rgba().alpha)
   }
@@ -132,15 +135,6 @@ impl Color for ColorImpl {
     let mut hsla = self.to_hsla();
     hsla.lightness = lightness.to_floating_component();
     Self::from_hsla(hsla)
-  }
-
-  fn with_luminance<TComponent: Component>(
-    self,
-    luminance: TComponent,
-  ) -> Self {
-    let mut lumma = self.to_lumma();
-    lumma.luma = luminance.to_floating_component();
-    Self::from_lumma(lumma)
   }
 
   fn with_saturation<TComponent: Component>(
@@ -164,12 +158,6 @@ impl Color for ColorImpl {
     Self::from_hsla(hsla)
   }
 
-  fn multiply_luminance<TFactor: Factor>(self, factor: TFactor) -> Self {
-    let mut lumma = self.to_lumma();
-    lumma.luma = factor.multiply(lumma.luma);
-    Self::from_lumma(lumma)
-  }
-
   fn multiply_saturation<TFactor: Factor>(self, factor: TFactor) -> Self {
     let mut hsla = self.to_hsla();
     hsla.saturation = factor.multiply(hsla.saturation);
@@ -179,6 +167,24 @@ impl Color for ColorImpl {
   fn multiply_alpha<TFactor: Factor>(self, factor: TFactor) -> Self {
     let mut srgba = self.to_srgba();
     srgba.alpha = factor.multiply(srgba.alpha);
+    Self::from_srgba(srgba)
+  }
+
+  fn add_lightness<TFactor: Factor>(self, factor: TFactor) -> Self {
+    let mut hsla = self.to_hsla();
+    hsla.lightness = factor.add(hsla.lightness);
+    Self::from_hsla(hsla)
+  }
+
+  fn add_saturation<TFactor: Factor>(self, factor: TFactor) -> Self {
+    let mut hsla = self.to_hsla();
+    hsla.saturation = factor.add(hsla.saturation);
+    Self::from_hsla(hsla)
+  }
+
+  fn add_alpha<TFactor: Factor>(self, factor: TFactor) -> Self {
+    let mut srgba = self.to_srgba();
+    srgba.alpha = factor.add(srgba.alpha);
     Self::from_srgba(srgba)
   }
 
@@ -225,35 +231,34 @@ trait InternalColor {
   fn from_hsla(hsla: Hsla) -> Self;
 
   fn to_lumma(self) -> Lumma;
-  fn from_lumma(lumma: Lumma) -> Self;
 
   fn to_srgba(self) -> Srgba;
   fn from_srgba(srgba: Srgba) -> Self;
 }
 
+use palette::IntoColor;
+
 impl InternalColor for ColorImpl {
   fn to_lab(self) -> Lab {
-    palette::IntoColor::<Lab>::into_color(self.to_srgba())
+    self.to_srgba().into_color()
   }
 
   fn from_lab(lab: Lab) -> Self {
-    Self::from_srgba(palette::IntoColor::<Srgba>::into_color(lab))
+    Self::from_srgba(lab.into_color())
   }
 
   fn to_hsla(self) -> Hsla {
-    palette::IntoColor::<Hsla>::into_color(self.to_srgba())
+    self.to_srgba().into_color()
   }
 
   fn from_hsla(hsla: Hsla) -> Self {
-    Self::from_srgba(palette::IntoColor::<Srgba>::into_color(hsla))
+    Self::from_srgba(hsla.into_color())
   }
 
   fn to_lumma(self) -> Lumma {
-    palette::IntoColor::<Lumma>::into_color(self.to_srgba())
-  }
-
-  fn from_lumma(lumma: Lumma) -> Self {
-    Self::from_srgba(palette::IntoColor::<Srgba>::into_color(lumma))
+    let srgba = self.to_srgba();
+    let encoded: Lumma = srgba.into_color();
+    encoded.into_linear()
   }
 
   fn to_srgba(self) -> Srgba {
