@@ -11,7 +11,8 @@ pub use component::*;
 pub use extraction::*;
 pub use factor::*;
 
-// TODO: no leaky abstractions
+// TODO: use https://git.apcacontrast.com/
+// TODO: cymk
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Rgba {
@@ -21,13 +22,15 @@ pub struct Rgba {
   pub alpha: FloatingComponent,
 }
 
-type Lab = palette::Oklaba<FloatingComponent>;
-type Hsla = palette::Okhsla<FloatingComponent>;
-type Srgba = palette::Srgba<FloatingComponent>;
 type ColorImpl = Rgba;
 
-type Hue = palette::hues::OklabHue<FloatingComponent>;
-type Lumma = palette::LinLumaa<palette::white_point::D65, FloatingComponent>;
+type LabImpl = palette::Oklaba<FloatingComponent>;
+type HslaImpl = palette::Okhsla<FloatingComponent>;
+type RgbaImpl = palette::Srgba<FloatingComponent>;
+
+type HueImpl = palette::hues::OklabHue<FloatingComponent>;
+type LuminanceImpl =
+  palette::LinLuma<palette::white_point::D65, FloatingComponent>;
 
 impl Rgba {
   #[allow(dead_code)]
@@ -40,7 +43,7 @@ impl Rgba {
       red: red.to_floating_component(),
       green: green.to_floating_component(),
       blue: blue.to_floating_component(),
-      alpha: FloatingComponent::max_component_value(),
+      alpha: FloatingComponent::max_component(),
     }
   }
 
@@ -69,8 +72,8 @@ pub trait Color: Clone + Copy {
   fn saturation<TComponent: Component>(self) -> TComponent;
   fn alpha<TComponent: Component>(self) -> TComponent;
 
-  fn luminance(self) -> Lumma;
-  fn hue(self) -> Hue;
+  fn luminance<TComponent: Component>(self) -> TComponent;
+  fn hue<TComponent: Component>(self) -> TComponent;
 
   fn with_lightness<TComponent: Component>(self, lightness: TComponent)
     -> Self;
@@ -109,12 +112,15 @@ impl Color for ColorImpl {
     TComponent::from_floating_component(self.to_rgba().blue)
   }
 
-  fn luminance(self) -> Lumma {
-    self.to_lumma()
+  fn luminance<TComponent: Component>(self) -> TComponent {
+    TComponent::from_floating_component(self.to_lumma().luma)
   }
 
-  fn hue(self) -> Hue {
-    self.to_hsla().hue
+  fn hue<TComponent: Component>(self) -> TComponent {
+    TComponent::from_floating_component(
+      self.to_hsla().color.hue.into_positive_radians()
+        / (2.0f32 * std::f32::consts::PI),
+    )
   }
 
   fn lightness<TComponent: Component>(self) -> TComponent {
@@ -149,7 +155,7 @@ impl Color for ColorImpl {
 
   fn with_hue<TComponent: Component>(self, hue: TComponent) -> Self {
     let mut hsla = self.to_hsla();
-    hsla.color.hue = Hue::from_radians(hue.to_floating_component());
+    hsla.color.hue = HueImpl::from_radians(hue.to_floating_component());
     Self::from_hsla(hsla)
   }
 
@@ -219,8 +225,8 @@ impl Color for ColorImpl {
 
     if self.lightness::<FloatingComponent>()
       < FloatingComponent::median(
-        FloatingComponent::min_component_value(),
-        FloatingComponent::max_component_value(),
+        FloatingComponent::min_component(),
+        FloatingComponent::max_component(),
       )
     {
       colored::Colorize::on_truecolor(foreground.as_str(), 255, 255, 255)
@@ -252,48 +258,48 @@ impl Color for ColorImpl {
 }
 
 trait InternalColor {
-  fn to_lab(self) -> Lab;
-  fn from_lab(lab: Lab) -> Self;
+  fn to_lab(self) -> LabImpl;
+  fn from_lab(lab: LabImpl) -> Self;
 
-  fn to_hsla(self) -> Hsla;
-  fn from_hsla(hsla: Hsla) -> Self;
+  fn to_hsla(self) -> HslaImpl;
+  fn from_hsla(hsla: HslaImpl) -> Self;
 
-  fn to_lumma(self) -> Lumma;
+  fn to_lumma(self) -> LuminanceImpl;
 
-  fn to_srgba(self) -> Srgba;
-  fn from_srgba(srgba: Srgba) -> Self;
+  fn to_srgba(self) -> RgbaImpl;
+  fn from_srgba(srgba: RgbaImpl) -> Self;
 }
 
 use palette::IntoColor;
 
 impl InternalColor for ColorImpl {
-  fn to_lab(self) -> Lab {
+  fn to_lab(self) -> LabImpl {
     self.to_srgba().into_color()
   }
 
-  fn from_lab(lab: Lab) -> Self {
+  fn from_lab(lab: LabImpl) -> Self {
     Self::from_srgba(lab.into_color())
   }
 
-  fn to_hsla(self) -> Hsla {
+  fn to_hsla(self) -> HslaImpl {
     self.to_srgba().into_color()
   }
 
-  fn from_hsla(hsla: Hsla) -> Self {
+  fn from_hsla(hsla: HslaImpl) -> Self {
     Self::from_srgba(hsla.into_color())
   }
 
-  fn to_lumma(self) -> Lumma {
+  fn to_lumma(self) -> LuminanceImpl {
     let srgba = self.to_srgba();
-    let encoded: Lumma = srgba.into_color();
+    let encoded: LuminanceImpl = srgba.into_color();
     encoded.into_linear()
   }
 
-  fn to_srgba(self) -> Srgba {
-    Srgba::new(self.red, self.green, self.blue, self.alpha)
+  fn to_srgba(self) -> RgbaImpl {
+    RgbaImpl::new(self.red, self.green, self.blue, self.alpha)
   }
 
-  fn from_srgba(srgba: Srgba) -> Self {
+  fn from_srgba(srgba: RgbaImpl) -> Self {
     Self {
       red: srgba.red,
       green: srgba.green,
@@ -301,4 +307,85 @@ impl InternalColor for ColorImpl {
       alpha: srgba.alpha,
     }
   }
+}
+
+mod contrast {
+  use super::{Color, FloatingComponent, LuminanceImpl};
+
+  macro_rules! impl_contrast_check {
+    ( $check: ident) => {
+      pub fn $check<TForeground: Color, TBackground: Color>(
+        foreground: TForeground,
+        background: TBackground,
+      ) -> bool {
+        palette::color_difference::Wcag21RelativeContrast::$check(
+          LuminanceImpl::new(foreground.luminance::<FloatingComponent>()),
+          LuminanceImpl::new(background.luminance::<FloatingComponent>()),
+        )
+      }
+    };
+  }
+
+  impl_contrast_check!(has_min_contrast_text);
+  impl_contrast_check!(has_min_contrast_large_text);
+  impl_contrast_check!(has_enhanced_contrast_text);
+  impl_contrast_check!(has_enhanced_contrast_large_text);
+  impl_contrast_check!(has_min_contrast_graphics);
+}
+
+mod channel {
+  use super::{Color, Component};
+
+  pub fn saturation_channel<TComponent: Component>(
+    color: impl Color,
+  ) -> TComponent {
+    color.saturation::<TComponent>()
+  }
+
+  pub fn lightness_channel<TComponent: Component>(
+    color: impl Color,
+  ) -> TComponent {
+    color.lightness::<TComponent>()
+  }
+
+  pub fn hue_channel<TComponent: Component>(color: impl Color) -> TComponent {
+    color.hue::<TComponent>()
+  }
+}
+
+#[allow(dead_code)]
+pub fn closest<TColor: Color, TIntoIter: IntoIterator<Item = TColor>>(
+  color: TColor,
+  colors: TIntoIter,
+) -> Option<TColor> {
+  colors.into_iter().min_by(move |lhs, rhs| {
+    let lhs_dist = (lhs.distance::<FloatingComponent>(color)).abs();
+    let rhs_dist = (rhs.distance::<FloatingComponent>(color)).abs();
+    lhs_dist.total_cmp(&rhs_dist)
+  })
+}
+
+#[allow(dead_code)]
+pub fn clamp_hue_around<
+  TColor: Color,
+  TReference: Color,
+  TTolerance: Component,
+>(
+  reference: TReference,
+  tolerance: TTolerance,
+  color: TColor,
+) -> TColor {
+  let half_tolerance = tolerance / TTolerance::from_f32(2.0);
+  let reference_hue = reference.hue::<TTolerance>();
+  let min_hue = reference_hue - half_tolerance;
+  let max_hue = reference_hue + half_tolerance;
+  let color_hue = color.hue::<TTolerance>();
+  let hue = if color_hue < min_hue {
+    min_hue
+  } else if color_hue > max_hue {
+    max_hue
+  } else {
+    color_hue
+  };
+  color.with_hue(hue)
 }

@@ -183,9 +183,8 @@ impl Palette {
 }
 
 lazy_static! {
-  static ref EMPTY: FloatingComponent =
-    FloatingComponent::min_component_value();
-  static ref FULL: FloatingComponent = FloatingComponent::max_component_value();
+  static ref EMPTY: FloatingComponent = FloatingComponent::min_component();
+  static ref FULL: FloatingComponent = FloatingComponent::max_component();
   static ref PART32: FloatingComponent =
     *FULL / FloatingComponent::from_f32(32f32);
   static ref SIXTH: FloatingComponent =

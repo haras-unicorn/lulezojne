@@ -1,3 +1,5 @@
+use num_traits::{SaturatingAdd, SaturatingMul};
+
 use super::component::Component;
 
 pub trait Factor {
@@ -13,13 +15,19 @@ impl Factor for f32 {
     component: TComponent,
   ) -> TComponent {
     TComponent::from_floating_component(
-      (component.to_floating_component() * self).clamp(0.0f32, 1.0f32),
+      component
+        .to_floating_component()
+        .saturating_mul(self)
+        .clamp(0.0f32, 1.0f32),
     )
   }
 
   fn add<TComponent: Component>(self, component: TComponent) -> TComponent {
     TComponent::from_floating_component(
-      (component.to_floating_component() + self).clamp(0.0f32, 1.0f32),
+      component
+        .to_floating_component()
+        .saturating_add(self)
+        .clamp(0.0f32, 1.0f32),
     )
   }
 }

@@ -1,5 +1,4 @@
-use super::{Color, Component, FloatingComponent};
-use palette::color_difference::Wcag21RelativeContrast;
+use super::{contrast::*, Color, Component, FloatingComponent};
 
 // TODO: use https://git.apcacontrast.com/
 
@@ -16,8 +15,8 @@ macro_rules! impl_correct_contrast {
           == foreground.lightness::<FloatingComponent>()
           && background.lightness::<FloatingComponent>()
             < FloatingComponent::median(
-              FloatingComponent::min_component_value(),
-              FloatingComponent::max_component_value(),
+              FloatingComponent::min_component(),
+              FloatingComponent::max_component(),
             ) {
         0.05f32
       } else {
@@ -25,11 +24,8 @@ macro_rules! impl_correct_contrast {
       };
 
       while foreground.lightness::<FloatingComponent>()
-        < FloatingComponent::max_component_value()
-        && !foreground
-          .luminance()
-          .color
-          .$check(background.luminance().color)
+        < FloatingComponent::max_component()
+        && !$check(foreground, background)
       {
         foreground = foreground.add_lightness(factor);
       }
