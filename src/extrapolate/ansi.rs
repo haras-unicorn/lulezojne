@@ -57,46 +57,62 @@ impl<'a> super::Extrapolator<'a, Palette> for Extrapolator {
     };
 
     let colors = Palette {
-      black: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
+      black: color::darkest(extracted256.iter().cloned())
         .ok_or_else(|| anyhow::anyhow!("Failed to find ansi black"))?,
-      red: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
+      red: color::closest_by_hue(*RED, extracted256.iter().cloned())
         .ok_or_else(|| anyhow::anyhow!("Failed to find ansi red"))?,
-      green: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
+      green: color::closest_by_hue(*GREEN, extracted256.iter().cloned())
         .ok_or_else(|| anyhow::anyhow!("Failed to find ansi green"))?,
-      blue: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
+      blue: color::closest_by_hue(*BLUE, extracted256.iter().cloned())
         .ok_or_else(|| anyhow::anyhow!("Failed to find ansi blue"))?,
-      cyan: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
+      cyan: color::closest_by_hue(*CYAN, extracted256.iter().cloned())
         .ok_or_else(|| anyhow::anyhow!("Failed to find ansi cyan"))?,
-      yellow: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
+      yellow: color::closest_by_hue(*YELLOW, extracted256.iter().cloned())
         .ok_or_else(|| anyhow::anyhow!("Failed to find ansi yellow"))?,
-      magenta: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
+      magenta: color::closest_by_hue(*MAGENTA, extracted256.iter().cloned())
         .ok_or_else(|| anyhow::anyhow!("Failed to find ansi magenta"))?,
-      white: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
+      white: color::closest_by_hue(*WHITE, extracted256.iter().cloned())
         .ok_or_else(|| anyhow::anyhow!("Failed to find ansi white"))?,
-      bright_black: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
-        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_black"))?,
-      bright_red: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
-        .ok_or_else(|| {
-        anyhow::anyhow!("Failed to find ansi bright_red")
-      })?,
-      bright_green: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
-        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_green"))?,
-      bright_blue: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
-        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_blue"))?,
-      bright_cyan: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
-        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_cyan"))?,
+      bright_black: color::closest_by_hue(
+        *BRIGHT_BLACK,
+        extracted256.iter().cloned(),
+      )
+      .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_black"))?,
+      bright_red: color::closest_by_hue(
+        *BRIGHT_RED,
+        extracted256.iter().cloned(),
+      )
+      .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_red"))?,
+      bright_green: color::closest_by_hue(
+        *BRIGHT_GREEN,
+        extracted256.iter().cloned(),
+      )
+      .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_green"))?,
+      bright_blue: color::closest_by_hue(
+        *BRIGHT_BLUE,
+        extracted256.iter().cloned(),
+      )
+      .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_blue"))?,
+      bright_cyan: color::closest_by_hue(
+        *BRIGHT_CYAN,
+        extracted256.iter().cloned(),
+      )
+      .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_cyan"))?,
       bright_yellow: color::closest_by_hue(
-        *BLACK,
+        *BRIGHT_YELLOW,
         extracted256.iter().cloned(),
       )
       .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_yellow"))?,
       bright_magenta: color::closest_by_hue(
-        *BLACK,
+        *BRIGHT_MAGENTA,
         extracted256.iter().cloned(),
       )
       .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_magenta"))?,
-      bright_white: color::closest_by_hue(*BLACK, extracted256.iter().cloned())
-        .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_white"))?,
+      bright_white: color::closest_by_hue(
+        *BRIGHT_WHITE,
+        extracted256.iter().cloned(),
+      )
+      .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_white"))?,
       gradient: Vec::new(),
       grayscale: Vec::new(),
     }
@@ -173,19 +189,19 @@ lazy_static! {
   static ref CYAN: Rgba = Rgba::opaque(*EMPTY, *HALF, *HALF);
   static ref YELLOW: Rgba = Rgba::opaque(*HALF, *HALF, *EMPTY);
   static ref MAGENTA: Rgba = Rgba::opaque(*HALF, *EMPTY, *HALF);
-  static ref BRIGHT_GREY: Rgba = Rgba::opaque(
+  static ref WHITE: Rgba = Rgba::opaque(
     FloatingComponent::from_f32(2f32) * *THIRD,
     FloatingComponent::from_f32(2f32) * *THIRD,
     FloatingComponent::from_f32(2f32) * *THIRD
   );
-  static ref GREY: Rgba = Rgba::opaque(*THIRD, *THIRD, *THIRD);
+  static ref BRIGHT_BLACK: Rgba = Rgba::opaque(*THIRD, *THIRD, *THIRD);
   static ref BRIGHT_RED: Rgba = Rgba::opaque(*FULL, *EMPTY, *EMPTY);
   static ref BRIGHT_GREEN: Rgba = Rgba::opaque(*EMPTY, *FULL, *EMPTY);
   static ref BRIGHT_BLUE: Rgba = Rgba::opaque(*EMPTY, *EMPTY, *FULL);
   static ref BRIGHT_CYAN: Rgba = Rgba::opaque(*EMPTY, *FULL, *FULL);
   static ref BRIGHT_YELLOW: Rgba = Rgba::opaque(*FULL, *FULL, *EMPTY);
   static ref BRIGHT_MAGENTA: Rgba = Rgba::opaque(*FULL, *EMPTY, *FULL);
-  static ref WHITE: Rgba = Rgba::opaque(*FULL, *FULL, *FULL);
+  static ref BRIGHT_WHITE: Rgba = Rgba::opaque(*FULL, *FULL, *FULL);
 }
 
 lazy_static! {
