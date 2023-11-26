@@ -65,13 +65,13 @@ impl<'a> super::Extrapolator<'a, Palette> for Extrapolator {
     let ternary = extracted4[2];
     let accent = extracted4[3];
 
-    let debug = color::closest_by_hue(extracted16.iter().cloned(), *CYAN)
+    let debug = color::closest_by_hue(*CYAN, extracted16.iter().cloned())
       .ok_or(anyhow::anyhow!("Couldn't find debug color"))?;
-    let info = color::closest_by_hue(extracted16.iter().cloned(), *GREEN)
+    let info = color::closest_by_hue(*GREEN, extracted16.iter().cloned())
       .ok_or(anyhow::anyhow!("Couldn't find info color"))?;
-    let warning = color::closest_by_hue(extracted16.iter().cloned(), *YELLOW)
+    let warning = color::closest_by_hue(*YELLOW, extracted16.iter().cloned())
       .ok_or(anyhow::anyhow!("Couldn't find warning color"))?;
-    let error = color::closest_by_hue(extracted16.iter().cloned(), *RED)
+    let error = color::closest_by_hue(*RED, extracted16.iter().cloned())
       .ok_or(anyhow::anyhow!("Couldn't find error color"))?;
 
     let colors = Palette {

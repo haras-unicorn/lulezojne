@@ -19,6 +19,7 @@ pub struct Rgba {
   pub alpha: FloatingComponent,
 }
 
+type Lab = palette::Oklaba<FloatingComponent>;
 type Hsla = palette::Okhsla<FloatingComponent>;
 type Lumma = palette::SrgbLumaa<FloatingComponent>;
 type Srgba = palette::Srgba<FloatingComponent>;
@@ -81,6 +82,8 @@ pub trait Color: Clone + Copy {
   fn multiply_luminance<TFactor: Factor>(self, factor: TFactor) -> Self;
   fn multiply_saturation<TFactor: Factor>(self, factor: TFactor) -> Self;
   fn multiply_alpha<TFactor: Factor>(self, factor: TFactor) -> Self;
+
+  fn distance<TComponent: Component>(self, other: Self) -> TComponent;
 
   fn to_colored_string(self) -> String;
   fn to_rgba(self) -> Rgba;
@@ -179,6 +182,13 @@ impl Color for ColorImpl {
     Self::from_srgba(srgba)
   }
 
+  fn distance<TComponent: Component>(self, other: Self) -> TComponent {
+    TComponent::from_f32(palette::color_difference::HyAb::hybrid_distance(
+      self.to_lab().color,
+      other.to_lab().color,
+    ))
+  }
+
   fn to_colored_string(self) -> String {
     let srgba = self.to_srgba();
     let red = srgba.red.to_integer_component();
@@ -208,6 +218,9 @@ impl Color for ColorImpl {
 }
 
 trait InternalColor {
+  fn to_lab(self) -> Lab;
+  fn from_lab(lab: Lab) -> Self;
+
   fn to_hsla(self) -> Hsla;
   fn from_hsla(hsla: Hsla) -> Self;
 
@@ -219,6 +232,14 @@ trait InternalColor {
 }
 
 impl InternalColor for ColorImpl {
+  fn to_lab(self) -> Lab {
+    palette::IntoColor::<Lab>::into_color(self.to_srgba())
+  }
+
+  fn from_lab(lab: Lab) -> Self {
+    Self::from_srgba(palette::IntoColor::<Srgba>::into_color(lab))
+  }
+
   fn to_hsla(self) -> Hsla {
     palette::IntoColor::<Hsla>::into_color(self.to_srgba())
   }

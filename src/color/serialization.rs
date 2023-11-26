@@ -45,14 +45,42 @@ impl<'de> serde::de::Visitor<'de> for ColorImplVisitor {
     match RGBA_PATTERN.captures(value) {
       Some(captures) => {
         let (_, [red, green, blue, alpha]) = captures.extract();
-        // FIXME: this panics!
-        let red = red.parse::<FloatingComponent>().unwrap();
-        // FIXME: this panics!
-        let green = green.parse::<FloatingComponent>().unwrap();
-        // FIXME: this panics!
-        let blue = blue.parse::<FloatingComponent>().unwrap();
-        // FIXME: this panics!
-        let alpha = alpha.parse::<FloatingComponent>().unwrap();
+        let red = match red.parse::<FloatingComponent>() {
+          Ok(color) => color,
+          Err(error) => {
+            return Err(E::invalid_type(
+              serde::de::Unexpected::Other(error.to_string().as_str()),
+              &"a float",
+            ))
+          }
+        };
+        let green = match green.parse::<FloatingComponent>() {
+          Ok(color) => color,
+          Err(error) => {
+            return Err(E::invalid_type(
+              serde::de::Unexpected::Other(error.to_string().as_str()),
+              &"a float",
+            ))
+          }
+        };
+        let blue = match blue.parse::<FloatingComponent>() {
+          Ok(color) => color,
+          Err(error) => {
+            return Err(E::invalid_type(
+              serde::de::Unexpected::Other(error.to_string().as_str()),
+              &"a float",
+            ))
+          }
+        };
+        let alpha = match alpha.parse::<FloatingComponent>() {
+          Ok(color) => color,
+          Err(error) => {
+            return Err(E::invalid_type(
+              serde::de::Unexpected::Other(error.to_string().as_str()),
+              &"a float",
+            ))
+          }
+        };
 
         Ok(ColorImpl {
           red,
@@ -61,15 +89,22 @@ impl<'de> serde::de::Visitor<'de> for ColorImplVisitor {
           alpha,
         })
       }
-      // FIXME: this panics!
-      _ => panic!("yea"),
+
+      _ => {
+        return Err(E::invalid_value(
+          serde::de::Unexpected::Other("unmatched regex"),
+          &format!("a string matching {RGBA_PATTERN_STR}").as_str(),
+        ))
+      }
     }
   }
 }
 
+const RGBA_PATTERN_STR: &'static str =
+  r"rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)";
+
 lazy_static::lazy_static! {
-  #[allow(clippy::unwrap_used)]
-  static ref RGBA_PATTERN: regex::Regex = regex::Regex::new(
-    r"rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)"
-  ).unwrap();
+  #[allow(clippy::unwrap_used)] // NOTE: it is a valid regex
+  static ref RGBA_PATTERN: regex::Regex =
+    regex::Regex::new(RGBA_PATTERN_STR).unwrap();
 }

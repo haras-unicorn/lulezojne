@@ -8,9 +8,9 @@ macro_rules! impl_filter_range {
       TColor: Color,
       TIntoIter: IntoIterator<Item = TColor>,
     >(
-      colors: TIntoIter,
       min: TComponent,
       max: TComponent,
+      colors: TIntoIter,
     ) -> impl Iterator<Item = TColor> {
       colors.into_iter().filter(move |color| {
         color.$channel::<TComponent>() > min
@@ -28,9 +28,9 @@ macro_rules! impl_filter_min_difference {
       TColor: Color,
       TIntoIter: IntoIterator<Item = TColor>,
     >(
-      colors: TIntoIter,
       color: TColor,
       min_difference: TComponent,
+      colors: TIntoIter,
     ) -> impl Iterator<Item = TColor> {
       let channel = color.$channel::<FloatingComponent>();
       let min = channel + min_difference.to_floating_component();
@@ -51,9 +51,9 @@ macro_rules! impl_filter_max_difference {
       TColor: Color,
       TIntoIter: IntoIterator<Item = TColor>,
     >(
-      colors: TIntoIter,
       color: TColor,
       min_difference: TComponent,
+      colors: TIntoIter,
     ) -> impl Iterator<Item = TColor> {
       let channel = color.$channel::<FloatingComponent>();
       let min = channel - min_difference.to_floating_component();
@@ -92,16 +92,14 @@ macro_rules! impl_closest_by {
   ($channel: ident, $name: ident) => {
     #[allow(dead_code)]
     pub fn $name<TColor: Color, TIntoIter: IntoIterator<Item = TColor>>(
-      colors: TIntoIter,
       color: TColor,
+      colors: TIntoIter,
     ) -> Option<TColor> {
       let channel = color.$channel::<FloatingComponent>();
       colors.into_iter().min_by(move |lhs, rhs| {
-        let lhs_hue_diff =
-          (lhs.$channel::<FloatingComponent>() - channel).abs();
-        let rhs_hue_diff =
-          (rhs.$channel::<FloatingComponent>() - channel).abs();
-        lhs_hue_diff.total_cmp(&rhs_hue_diff)
+        let lhs_diff = (lhs.$channel::<FloatingComponent>() - channel).abs();
+        let rhs_diff = (rhs.$channel::<FloatingComponent>() - channel).abs();
+        lhs_diff.total_cmp(&rhs_diff)
       })
     }
   };
@@ -129,3 +127,15 @@ impl_filter_max_difference!(hue, filter_hue_max_difference);
 impl_filter_min_difference!(hue, filter_hue_min_difference);
 impl_filter_range!(hue, filter_hue_range);
 impl_closest_by!(hue, closest_by_hue);
+
+#[allow(dead_code)]
+pub fn closest<TColor: Color, TIntoIter: IntoIterator<Item = TColor>>(
+  color: TColor,
+  colors: TIntoIter,
+) -> Option<TColor> {
+  colors.into_iter().min_by(move |lhs, rhs| {
+    let lhs_dist = (lhs.distance::<FloatingComponent>(color)).abs();
+    let rhs_dist = (rhs.distance::<FloatingComponent>(color)).abs();
+    lhs_dist.total_cmp(&rhs_dist)
+  })
+}
