@@ -55,6 +55,9 @@ impl<'a> super::Extrapolator<'a, Palette> for Extrapolator {
       let extractor = self.extractor.clone().lock_owned().await;
       extractor.prominent(255).await?
     };
+    let extracted256 =
+      color::filter_saturation_range(0.1f32, 1.0f32, extracted256)
+        .collect::<Vec<_>>();
 
     let colors = Palette {
       black: color::darkest(extracted256.iter().cloned())
@@ -113,8 +116,20 @@ impl<'a> super::Extrapolator<'a, Palette> for Extrapolator {
         extracted256.iter().cloned(),
       )
       .ok_or_else(|| anyhow::anyhow!("Failed to find ansi bright_white"))?,
-      gradient: Vec::new(),
-      grayscale: Vec::new(),
+      gradient: (*GRADIENT)
+        .iter()
+        .map(|color| {
+          color::closest_by_hue(*color, extracted256.iter().cloned())
+        })
+        .flatten()
+        .collect::<Vec<_>>(),
+      grayscale: (*GRAYSCALE)
+        .iter()
+        .map(|color| {
+          color::closest_by_hue(*color, extracted256.iter().cloned())
+        })
+        .flatten()
+        .collect::<Vec<_>>(),
     }
     .correct_contrast(
       |x, y| color::correct_text_contrast(x, y).to_rgba(),

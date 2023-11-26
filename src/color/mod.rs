@@ -11,6 +11,8 @@ pub use component::*;
 pub use extraction::*;
 pub use factor::*;
 
+// TODO: no leaky abstractions
+
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Rgba {
   pub red: FloatingComponent,
@@ -24,6 +26,7 @@ type Hsla = palette::Okhsla<FloatingComponent>;
 type Srgba = palette::Srgba<FloatingComponent>;
 type ColorImpl = Rgba;
 
+type Hue = palette::hues::OklabHue<FloatingComponent>;
 type Lumma = palette::LinLumaa<palette::white_point::D65, FloatingComponent>;
 
 impl Rgba {
@@ -62,13 +65,12 @@ pub trait Color: Clone + Copy {
   fn green<TComponent: Component>(self) -> TComponent;
   fn blue<TComponent: Component>(self) -> TComponent;
 
-  fn luminance(self) -> Lumma;
-
   fn lightness<TComponent: Component>(self) -> TComponent;
   fn saturation<TComponent: Component>(self) -> TComponent;
-  fn hue<TComponent: Component>(self) -> TComponent;
-
   fn alpha<TComponent: Component>(self) -> TComponent;
+
+  fn luminance(self) -> Lumma;
+  fn hue(self) -> Hue;
 
   fn with_lightness<TComponent: Component>(self, lightness: TComponent)
     -> Self;
@@ -76,6 +78,7 @@ pub trait Color: Clone + Copy {
     self,
     saturation: TComponent,
   ) -> Self;
+  fn with_hue<TComponent: Component>(self, hue: TComponent) -> Self;
   fn with_alpha<TComponent: Component>(self, alpha: TComponent) -> Self;
 
   fn multiply_lightness<TFactor: Factor>(self, factor: TFactor) -> Self;
@@ -89,6 +92,7 @@ pub trait Color: Clone + Copy {
   fn distance<TComponent: Component>(self, other: Self) -> TComponent;
 
   fn to_colored_string(self) -> String;
+  fn color_square(self) -> String;
   fn to_rgba(self) -> Rgba;
 }
 
@@ -109,19 +113,16 @@ impl Color for ColorImpl {
     self.to_lumma()
   }
 
+  fn hue(self) -> Hue {
+    self.to_hsla().hue
+  }
+
   fn lightness<TComponent: Component>(self) -> TComponent {
     TComponent::from_floating_component(self.to_hsla().lightness)
   }
 
   fn saturation<TComponent: Component>(self) -> TComponent {
     TComponent::from_floating_component(self.to_hsla().saturation)
-  }
-
-  fn hue<TComponent: Component>(self) -> TComponent {
-    TComponent::from_floating_component(
-      self.to_hsla().hue.into_positive_radians()
-        / FloatingComponent::from_f32(2f32 * std::f32::consts::PI),
-    )
   }
 
   fn alpha<TComponent: Component>(self) -> TComponent {
@@ -143,6 +144,12 @@ impl Color for ColorImpl {
   ) -> Self {
     let mut hsla = self.to_hsla();
     hsla.saturation = saturation.to_floating_component();
+    Self::from_hsla(hsla)
+  }
+
+  fn with_hue<TComponent: Component>(self, hue: TComponent) -> Self {
+    let mut hsla = self.to_hsla();
+    hsla.color.hue = Hue::from_radians(hue.to_floating_component());
     Self::from_hsla(hsla)
   }
 
@@ -202,13 +209,34 @@ impl Color for ColorImpl {
     let blue = srgba.blue.to_integer_component();
     let alpha = srgba.alpha.to_floating_component();
 
-    colored::Colorize::truecolor(
+    let foreground = colored::Colorize::truecolor(
       format!("rgba({red}, {green}, {blue}, {alpha})").as_str(),
       red,
       green,
       blue,
     )
-    .to_string()
+    .to_string();
+
+    if self.lightness::<FloatingComponent>()
+      < FloatingComponent::median(
+        FloatingComponent::min_component_value(),
+        FloatingComponent::max_component_value(),
+      )
+    {
+      colored::Colorize::on_truecolor(foreground.as_str(), 255, 255, 255)
+        .to_string()
+    } else {
+      colored::Colorize::on_truecolor(foreground.as_str(), 0, 0, 0).to_string()
+    }
+  }
+
+  fn color_square(self) -> String {
+    let srgba = self.to_srgba();
+    let red = srgba.red.to_integer_component();
+    let green = srgba.green.to_integer_component();
+    let blue = srgba.blue.to_integer_component();
+
+    colored::Colorize::truecolor("█", red, green, blue).to_string()
   }
 
   fn to_rgba(self) -> Rgba {

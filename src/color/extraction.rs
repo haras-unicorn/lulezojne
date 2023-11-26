@@ -13,8 +13,8 @@ macro_rules! impl_filter_range {
       colors: TIntoIter,
     ) -> impl Iterator<Item = TColor> {
       colors.into_iter().filter(move |color| {
-        color.$channel::<TComponent>() > min
-          && color.$channel::<TComponent>() < max
+        $channel::<FloatingComponent>(*color) > min.to_floating_component()
+          && $channel::<FloatingComponent>(*color) < max.to_floating_component()
       })
     }
   };
@@ -32,12 +32,12 @@ macro_rules! impl_filter_min_difference {
       min_difference: TComponent,
       colors: TIntoIter,
     ) -> impl Iterator<Item = TColor> {
-      let channel = color.$channel::<FloatingComponent>();
+      let channel = $channel::<FloatingComponent>(color);
       let min = channel + min_difference.to_floating_component();
       let max = channel - min_difference.to_floating_component();
       colors.into_iter().filter(move |color| {
-        color.$channel::<FloatingComponent>() > min
-          && color.$channel::<FloatingComponent>() < max
+        $channel::<FloatingComponent>(*color) > min
+          && $channel::<FloatingComponent>(*color) < max
       })
     }
   };
@@ -55,12 +55,12 @@ macro_rules! impl_filter_max_difference {
       min_difference: TComponent,
       colors: TIntoIter,
     ) -> impl Iterator<Item = TColor> {
-      let channel = color.$channel::<FloatingComponent>();
+      let channel = $channel::<FloatingComponent>(color);
       let min = channel - min_difference.to_floating_component();
       let max = channel + min_difference.to_floating_component();
       colors.into_iter().filter(move |color| {
-        color.$channel::<FloatingComponent>() > min
-          && color.$channel::<FloatingComponent>() < max
+        $channel::<FloatingComponent>(*color) > min
+          && $channel::<FloatingComponent>(*color) < max
       })
     }
   };
@@ -74,7 +74,7 @@ macro_rules! impl_min_max {
     ) -> Option<TColor> {
       colors
         .into_iter()
-        .min_by_key(move |color| color.$channel::<IntegerComponent>())
+        .min_by_key(move |color| $channel::<IntegerComponent>(*color))
     }
 
     #[allow(dead_code)]
@@ -83,7 +83,7 @@ macro_rules! impl_min_max {
     ) -> Option<TColor> {
       colors
         .into_iter()
-        .min_by_key(move |color| color.$channel::<IntegerComponent>())
+        .max_by_key(move |color| $channel::<IntegerComponent>(*color))
     }
   };
 }
@@ -95,32 +95,47 @@ macro_rules! impl_closest_by {
       color: TColor,
       colors: TIntoIter,
     ) -> Option<TColor> {
-      let channel = color.$channel::<FloatingComponent>();
+      let channel = $channel::<FloatingComponent>(color);
       colors.into_iter().min_by(move |lhs, rhs| {
-        let lhs_diff = (lhs.$channel::<FloatingComponent>() - channel).abs();
-        let rhs_diff = (rhs.$channel::<FloatingComponent>() - channel).abs();
+        let lhs_diff = ($channel::<FloatingComponent>(color) - channel).abs();
+        let rhs_diff = ($channel::<FloatingComponent>(color) - channel).abs();
         lhs_diff.total_cmp(&rhs_diff)
       })
     }
   };
 }
 
-impl_filter_max_difference!(lightness, filter_lightness_max_difference);
-impl_filter_min_difference!(lightness, filter_lightness_min_difference);
-impl_filter_range!(lightness, filter_lightness_range);
-impl_closest_by!(lightness, closest_by_lightness);
-impl_min_max!(lightness, darkest, brightest);
+fn lightness_channel<TComponent: Component>(color: impl Color) -> TComponent {
+  color.lightness::<TComponent>()
+}
+impl_filter_max_difference!(lightness_channel, filter_lightness_max_difference);
+impl_filter_min_difference!(lightness_channel, filter_lightness_min_difference);
+impl_filter_range!(lightness_channel, filter_lightness_range);
+impl_closest_by!(lightness_channel, closest_by_lightness);
+impl_min_max!(lightness_channel, darkest, brightest);
 
-impl_filter_max_difference!(saturation, filter_saturation_max_difference);
-impl_filter_min_difference!(saturation, filter_saturation_min_difference);
-impl_filter_range!(saturation, filter_saturation_range);
-impl_closest_by!(saturation, closest_by_saturation);
-impl_min_max!(saturation, least_saturated, most_saturated);
+fn saturation_channel<TComponent: Component>(color: impl Color) -> TComponent {
+  color.saturation::<TComponent>()
+}
+impl_filter_max_difference!(
+  saturation_channel,
+  filter_saturation_max_difference
+);
+impl_filter_min_difference!(
+  saturation_channel,
+  filter_saturation_min_difference
+);
+impl_filter_range!(saturation_channel, filter_saturation_range);
+impl_closest_by!(saturation_channel, closest_by_saturation);
+impl_min_max!(saturation_channel, least_saturated, most_saturated);
 
-impl_filter_max_difference!(hue, filter_hue_max_difference);
-impl_filter_min_difference!(hue, filter_hue_min_difference);
-impl_filter_range!(hue, filter_hue_range);
-impl_closest_by!(hue, closest_by_hue);
+fn hue_channel<TComponent: Component>(color: impl Color) -> TComponent {
+  TComponent::from_f32(color.hue().into_inner())
+}
+impl_filter_max_difference!(hue_channel, filter_hue_max_difference);
+impl_filter_min_difference!(hue_channel, filter_hue_min_difference);
+impl_filter_range!(hue_channel, filter_hue_range);
+impl_closest_by!(hue_channel, closest_by_hue);
 
 #[allow(dead_code)]
 pub fn closest<TColor: Color, TIntoIter: IntoIterator<Item = TColor>>(
@@ -132,4 +147,19 @@ pub fn closest<TColor: Color, TIntoIter: IntoIterator<Item = TColor>>(
     let rhs_dist = (rhs.distance::<FloatingComponent>(color)).abs();
     lhs_dist.total_cmp(&rhs_dist)
   })
+}
+
+#[allow(dead_code)]
+pub fn clamp_hue_around<
+  TColor: Color,
+  TReference: Color,
+  TTolerance: Component,
+>(
+  color: TColor,
+  reference: TReference,
+  tolerance: TTolerance,
+) -> TColor {
+  let half_tolerance = tolerance / TTolerance::from_f32(2.0);
+  let min_hue = reference.hue().saturating_sub(half_tolerance);
+  let max_hue = reference.hue().saturating_add(half_tolerance);
 }

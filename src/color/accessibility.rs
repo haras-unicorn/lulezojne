@@ -10,18 +10,22 @@ macro_rules! impl_correct_contrast {
       background: TBackground,
       mut foreground: TForeground,
     ) -> impl Color {
-      let factor = FloatingComponent::from_f32(
-        if background.lightness::<FloatingComponent>()
-          < foreground.lightness::<FloatingComponent>()
-        {
-          0.05f32
-        } else {
-          -0.05f32
-        },
-      );
+      let factor = if background.lightness::<FloatingComponent>()
+        < foreground.lightness::<FloatingComponent>()
+        || background.lightness::<FloatingComponent>()
+          == foreground.lightness::<FloatingComponent>()
+          && background.lightness::<FloatingComponent>()
+            < FloatingComponent::median(
+              FloatingComponent::min_component_value(),
+              FloatingComponent::max_component_value(),
+            ) {
+        0.05f32
+      } else {
+        -0.05f32
+      };
 
       while foreground.lightness::<FloatingComponent>()
-        != FloatingComponent::max_component_value()
+        < FloatingComponent::max_component_value()
         && !foreground
           .luminance()
           .color

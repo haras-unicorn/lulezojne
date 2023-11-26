@@ -113,5 +113,14 @@ fn write_color(
   color: impl Color,
 ) -> Result<(), std::io::Error> {
   let color_string = color.to_colored_string();
-  write.write_all(format!("{color_string}\n").as_bytes())
+  let color_square = color.color_square();
+  let black = colored::Colorize::truecolor("█", 0, 0, 0);
+  let white = colored::Colorize::truecolor("█", 255, 255, 255);
+  let contrast_row = format!("{black}{black}{black} {white}{white}{white}");
+  let color_row =
+    format!("{black}{color_square}{black} {white}{color_square}{white}");
+  write.write_all(
+    format!("{color_string}\n{contrast_row}\n{color_row}\n{contrast_row}\n\n")
+      .as_bytes(),
+  )
 }
