@@ -6,8 +6,7 @@
     utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, utils }:
-    {
+  outputs = { self, nixpkgs, utils }: {
       nixosModules.default = { pkgs, lib, config, ... }:
         with lib;
         let
@@ -85,6 +84,11 @@
       {
         devShells.default = pkgs.mkShell {
           buildInputs = with pkgs; [
+            # Nix
+            nil
+            nixpkgs-fmt
+
+            # Rust
             llvmPackages.clangNoLibcxx
             llvmPackages.lldb
             rustc
@@ -93,7 +97,12 @@
             rustfmt
             rust-analyzer
             cargo-edit
+
+            # Misc
+            nodePackages.prettier
           ];
+
+          RUST_BACKTRACE = 1;
         };
 
         packages.default = pkgs.rustPlatform.buildRustPackage {
