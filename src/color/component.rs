@@ -37,9 +37,13 @@ pub trait Component:
 
   fn median_circular(min: Self, max: Self) -> Self;
 
-  fn clamp(min: Self, max: Self) -> Self;
+  fn clamp(self, min: Self, max: Self) -> Self;
 
-  fn clamp_circular(min: Self, max: Self) -> Self;
+  fn clamp_circular(self, min: Self, max: Self) -> Self;
+
+  fn extend(self, range: (Self, Self)) -> (Self, Self);
+
+  fn extend_circular(self, range: (Self, Self)) -> (Self, Self);
 
   fn min_component() -> Self;
 
@@ -145,16 +149,63 @@ impl Component for FloatingComponent {
     )
   }
 
-  fn median(min: Self, max: Self) -> Self {
-    Self(min.0 + (max.0 - min.0) / (2 as f32))
-  }
-
   fn min_component() -> Self {
     Self(0.0f32)
   }
 
   fn max_component() -> Self {
     Self(1.0f32)
+  }
+
+  fn median(min: Self, max: Self) -> Self {
+    Self(min.0 + (max.0 - min.0) / (2 as f32))
+  }
+
+  fn median_circular(min: Self, max: Self) -> Self {
+    if max > min {
+      Self::median(min, max)
+    } else {
+      let max = max.saturating_add(&Self::max_component());
+      let median = Self::median(min, max);
+      if median > Self::max_component() {
+        median.saturating_sub(&Self::max_component())
+      } else {
+        median
+      }
+    }
+  }
+
+  fn clamp(self, min: Self, max: Self) -> Self {
+    Self(self.0.clamp(min.0, max.0))
+  }
+
+  fn clamp_circular(self, min: Self, max: Self) -> Self {
+    if max > min {
+      self.clamp(min, max)
+    } else {
+      let me = self.saturating_add(&Self::max_component());
+      let max = max.saturating_add(&Self::max_component());
+      let clamped = me.clamp(min, max);
+      if clamped > Self::max_component() {
+        clamped.saturating_sub(&Self::max_component())
+      } else {
+        clamped
+      }
+    }
+  }
+
+  fn extend(self, range: (Self, Self)) -> (Self, Self) {
+    if self < range.0 {
+      (self, range.1)
+    } else if self > range.1 {
+      (range.0, self)
+    } else {
+      range
+    }
+  }
+
+  fn extend_circular(self, range: (Self, Self)) -> (Self, Self) {
+    todo!()
   }
 }
 
@@ -269,5 +320,79 @@ impl Component for IntegerComponent {
 
   fn max_component() -> Self {
     Self(u8::MAX)
+  }
+
+  fn median_circular(min: Self, max: Self) -> Self {
+    if max > min {
+      Self::median(min, max)
+    } else {
+      let max = max.to_u16().saturating_add(Self::max_component().to_u16());
+      let min = min.to_u16();
+      let median =
+        min.saturating_add(max.saturating_sub(min).saturating_div(2u16));
+      if median > Self::max_component().to_u16() {
+        Self::from_u16(median.saturating_sub(Self::max_component().to_u16()))
+      } else {
+        Self::from_u16(median)
+      }
+    }
+  }
+
+  fn clamp(self, min: Self, max: Self) -> Self {
+    Self(self.0.clamp(min.0, max.0))
+  }
+
+  fn clamp_circular(self, min: Self, max: Self) -> Self {
+    if max > min {
+      Component::clamp(self, min, max)
+    } else {
+      let me = self.to_u16().saturating_add(Self::max_component().to_u16());
+      let maxx = min.to_u16().saturating_add(Self::max_component().to_u16());
+      let minn = max.to_u16();
+      let clamped = me.clamp(minn, maxx);
+      if clamped > Self::max_component().to_u16() {
+        Self::from_u16(clamped.saturating_sub(Self::max_component().to_u16()))
+      } else {
+        Self::from_u16(clamped)
+      }
+    }
+  }
+
+  fn extend(self, range: (Self, Self)) -> (Self, Self) {
+    if self < range.0 {
+      (self, range.1)
+    } else if self > range.1 {
+      (range.0, self)
+    } else {
+      range
+    }
+  }
+
+  fn extend_circular(self, range: (Self, Self)) -> (Self, Self) {
+    if range.1 > range.1 {
+      self.extend(range)
+    } else {
+      let me = self.to_u16();
+      let range = (
+        range.1.to_u16(),
+        range
+          .0
+          .to_u16()
+          .saturating_add(Self::max_component().to_u16()),
+      );
+      if me < range.0 {
+        (Self)
+      }
+    }
+  }
+}
+
+impl IntegerComponent {
+  fn to_u16(self) -> u16 {
+    self.0.into()
+  }
+
+  fn from_u16(value: u16) -> Self {
+    Self(value.clamp(0u16, 255u16) as u8)
   }
 }

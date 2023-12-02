@@ -53,6 +53,7 @@ pub fn analyze<
   let mut lightness_average: FloatingComponent = Zero::zero();
   let mut saturation_average: FloatingComponent = Zero::zero();
   let mut luminance_average: FloatingComponent = Zero::zero();
+  let mut hue_average: FloatingComponent = Zero::zero();
   for color in colors.into_iter() {
     min!(metrics, lightness, color);
     min!(metrics, saturation, color);
@@ -65,6 +66,7 @@ pub fn analyze<
     lightness_average = lightness_average.saturating_add(&color.lightness());
     saturation_average = saturation_average.saturating_add(&color.saturation());
     luminance_average = luminance_average.saturating_add(&color.luminance());
+    hue_average = hue_average.saturating_add(&color.hue::<FloatingComponent>());
 
     count = count + One::one();
   }
@@ -79,11 +81,23 @@ pub fn analyze<
       .checked_div(&count)
       .unwrap_or(Zero::zero()),
   );
+  metrics.luminance.average = TComponent::from_floating_component(
+    luminance_average
+      .checked_div(&count)
+      .unwrap_or(Zero::zero()),
+  );
+  metrics.hue.average = TComponent::from_floating_component(
+    hue_average.checked_div(&count).unwrap_or(Zero::zero()),
+  );
 
   metrics.lightness.median =
     TComponent::median(metrics.lightness.min, metrics.lightness.max);
   metrics.saturation.median =
     TComponent::median(metrics.saturation.min, metrics.saturation.max);
+  metrics.luminance.median =
+    TComponent::median(metrics.luminance.min, metrics.luminance.max);
+  metrics.hue.median =
+    TComponent::median_circular(metrics.hue.min, metrics.hue.max);
 
   metrics
 }
