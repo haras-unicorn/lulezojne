@@ -208,29 +208,23 @@ impl Component for FloatingComponent {
     if range.1 > range.1 {
       self.extend(range)
     } else {
-      let me = self.to_u16();
-      let range = (
-        range.1.to_u16(),
-        range
-          .0
-          .to_u16()
-          .saturating_add(Self::max_component().to_u16()),
-      );
+      let me = self.0;
+      let range = (range.1 .0, range.0 .0.add(Self::max_component().0));
       if range.0 <= range.1 {
         if me < range.0 {
-          (self, Self::from_u16(range.1))
+          (self, Self(range.1))
         } else if me > range.1 {
-          (Self::from_u16(range.0), self)
+          (Self(range.0), self)
         } else {
-          (Self::from_u16(range.0), Self::from_u16(range.1))
+          (Self(range.0), Self(range.1))
         }
       } else {
         if me < range.1 {
-          (Self::from_u16(range.0), self)
+          (Self(range.0), self)
         } else if me > range.0 {
-          (self, Self::from_u16(range.1))
+          (self, Self(range.1))
         } else {
-          (Self::from_u16(range.0), Self::from_u16(range.1))
+          (Self(range.0), Self(range.1))
         }
       }
     }
@@ -437,4 +431,10 @@ impl IntegerComponent {
   fn from_u16(value: u16) -> Self {
     Self(value.clamp(0u16, 255u16) as u8)
   }
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn it_works() {}
 }
