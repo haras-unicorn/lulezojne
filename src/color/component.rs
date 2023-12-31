@@ -205,7 +205,35 @@ impl Component for FloatingComponent {
   }
 
   fn extend_circular(self, range: (Self, Self)) -> (Self, Self) {
-    todo!()
+    if range.1 > range.1 {
+      self.extend(range)
+    } else {
+      let me = self.to_u16();
+      let range = (
+        range.1.to_u16(),
+        range
+          .0
+          .to_u16()
+          .saturating_add(Self::max_component().to_u16()),
+      );
+      if range.0 <= range.1 {
+        if me < range.0 {
+          (self, Self::from_u16(range.1))
+        } else if me > range.1 {
+          (Self::from_u16(range.0), self)
+        } else {
+          (Self::from_u16(range.0), Self::from_u16(range.1))
+        }
+      } else {
+        if me < range.1 {
+          (Self::from_u16(range.0), self)
+        } else if me > range.0 {
+          (self, Self::from_u16(range.1))
+        } else {
+          (Self::from_u16(range.0), Self::from_u16(range.1))
+        }
+      }
+    }
   }
 }
 
