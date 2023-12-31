@@ -380,8 +380,22 @@ impl Component for IntegerComponent {
           .to_u16()
           .saturating_add(Self::max_component().to_u16()),
       );
-      if me < range.0 {
-        (Self)
+      if range.0 <= range.1 {
+        if me < range.0 {
+          (self, Self::from_u16(range.1))
+        } else if me > range.1 {
+          (Self::from_u16(range.0), self)
+        } else {
+          (Self::from_u16(range.0), Self::from_u16(range.1))
+        }
+      } else {
+        if me < range.1 {
+          (Self::from_u16(range.0), self)
+        } else if me > range.0 {
+          (self, Self::from_u16(range.1))
+        } else {
+          (Self::from_u16(range.0), Self::from_u16(range.1))
+        }
       }
     }
   }
